@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+
+    // Public profile: readable by signed-in users. Users cannot grant
+    // themselves the driver capability here; UC12 will go through a Cloud
+    // Function that checks the vehicle.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if isOwner(uid)
+        && request.resource.data.driverEnabled == false
+        && request.resource.data.keys().hasOnly([
+             'firstName', 'lastName', 'photoUrl', 'driverEnabled',
+             'ratingAverage', 'ratingCount', 'createdAt'
+           ]);
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['firstName', 'lastName', 'photoUrl']);
+      allow delete: if false;
+    }
+
+    // Private contact data: owner and admins only.
+    match /users_private/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt']);
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['phone']);
+      allow delete: if false;
+    }
+  }
+}
