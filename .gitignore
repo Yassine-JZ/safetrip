@@ -49,3 +49,6 @@ app.*.map.json
 
 # Fichiers partagés dans la session
 uploads/
+
+# Variables d'environnement (secrets)
+.env*
