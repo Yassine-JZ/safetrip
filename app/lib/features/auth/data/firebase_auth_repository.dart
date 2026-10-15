@@ -11,7 +11,9 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
-  static const _emailLanguage = 'fr';
+  // E-mail language and wording come from the console templates (French).
+  // Calling setLanguageCode would make Firebase send its stock template and
+  // drop the customised sender name and subject.
 
   AppUser? _map(User? user) => user == null
       ? null
@@ -74,7 +76,6 @@ class FirebaseAuthRepository implements AuthRepository {
       await batch.commit();
 
       try {
-        await _auth.setLanguageCode(_emailLanguage);
         await user.sendEmailVerification();
       } on FirebaseAuthException {
         // The verification screen offers a resend button.
@@ -98,7 +99,6 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) async {
     try {
-      await _auth.setLanguageCode(_emailLanguage);
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
@@ -112,7 +112,6 @@ class FirebaseAuthRepository implements AuthRepository {
       throw const AuthFailure('Session expirée. Reconnectez-vous.');
     }
     try {
-      await _auth.setLanguageCode(_emailLanguage);
       await user.sendEmailVerification();
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
