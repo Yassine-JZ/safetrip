@@ -14,6 +14,9 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
   dès l'inscription ; tant qu'il n'est pas cliqué, l'utilisateur reste sur l'écran
   « Vérifiez votre e-mail » (renvoi du lien avec délai de 60 s, changement de compte).
   Seule une boîte e-mail réelle permet donc d'accéder à l'application.
+- **Un numéro de téléphone = un seul compte** : le numéro est normalisé (`+216XXXXXXXX`)
+  et réservé dans `phone_numbers/{numéro}` dans le même lot que le profil ; les règles
+  Firestore refusent un numéro déjà pris et personne ne peut lire cette collection.
 - **Inscription unique, sans choix de rôle** : prénom, nom, e-mail, téléphone,
   mot de passe (avec indicateur de robustesse) et confirmation, acceptation des conditions.
   Le mode conducteur s'activera plus tard depuis le profil (UC12).

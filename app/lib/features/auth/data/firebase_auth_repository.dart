@@ -68,10 +68,27 @@ class FirebaseAuthRepository implements AuthRepository {
       });
       batch.set(_firestore.collection('users_private').doc(user.uid), {
         'email': data.email.trim(),
-        'phone': data.phone.trim(),
+        'phone': data.phone,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      await batch.commit();
+      // Rules reject this write when the number already belongs to someone,
+      // which makes the whole batch fail.
+      batch.set(_firestore.collection('phone_numbers').doc(data.phone), {
+        'uid': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      try {
+        await batch.commit();
+      } on FirebaseException catch (e) {
+        // Without its profile the account is unusable and would lock the
+        // e-mail address, so it is removed.
+        await _deleteQuietly(user);
+        throw AuthFailure(
+          e.code == 'permission-denied'
+              ? 'Ce numéro de téléphone est déjà utilisé par un autre compte.'
+              : 'Inscription impossible pour le moment. Réessayez.',
+        );
+      }
 
       try {
         await _auth.setLanguageCode(_emailLanguage);
@@ -87,11 +104,14 @@ class FirebaseAuthRepository implements AuthRepository {
       );
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
-    } on FirebaseException {
-      throw const AuthFailure(
-        'Compte créé, mais le profil n\'a pas pu être enregistré. '
-        'Réessayez depuis votre profil.',
-      );
+    }
+  }
+
+  Future<void> _deleteQuietly(User user) async {
+    try {
+      await user.delete();
+    } on FirebaseAuthException {
+      await _auth.signOut();
     }
   }
 

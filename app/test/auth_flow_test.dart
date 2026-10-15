@@ -109,6 +109,48 @@ void main() {
     expect(find.textContaining('Bonjour Salma Trabelsi'), findsOneWidget);
   });
 
+  testWidgets('a phone number already in use is refused', (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.byKey(const Key('go_register')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('register_first_name')),
+      'Karim',
+    );
+    await tester.enterText(
+      find.byKey(const Key('register_last_name')),
+      'Haddad',
+    );
+    await tester.enterText(
+      find.byKey(const Key('register_email')),
+      'karim@univ.tn',
+    );
+    // Same number as the demo account, typed in another format.
+    await tester.enterText(
+      find.byKey(const Key('register_phone')),
+      '98 111 222',
+    );
+    await tester.enterText(
+      find.byKey(const Key('register_password')),
+      'Safe2026',
+    );
+    await tester.enterText(
+      find.byKey(const Key('register_confirm')),
+      'Safe2026',
+    );
+    await tester.ensureVisible(find.byKey(const Key('register_terms')));
+    await tester.tap(find.byKey(const Key('register_terms')));
+    await tester.tap(find.byKey(const Key('register_submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Ce numéro de téléphone est déjà utilisé par un autre compte.'),
+      findsOneWidget,
+    );
+    expect(find.text('Vérifiez votre e-mail'), findsNothing);
+  });
+
   testWidgets('unverified account can resend the link or switch account', (
     tester,
   ) async {

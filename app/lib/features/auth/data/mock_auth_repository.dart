@@ -15,13 +15,16 @@ class MockAuthRepository implements AuthRepository {
       ),
       password: 'Demo1234',
     );
+    _phoneOwners[demoPhone] = 'demo-uid';
   }
 
   static const demoEmail = 'demo@safetrip.tn';
   static const demoPassword = 'Demo1234';
+  static const demoPhone = '+21698111222';
   static const _latency = Duration(milliseconds: 900);
 
   final _accounts = <String, _MockAccount>{};
+  final _phoneOwners = <String, String>{};
   final _controller = StreamController<AppUser?>.broadcast();
   AppUser? _current;
 
@@ -55,12 +58,18 @@ class MockAuthRepository implements AuthRepository {
     if (_accounts.containsKey(key)) {
       throw const AuthFailure('Un compte existe déjà avec cet e-mail.');
     }
+    if (_phoneOwners.containsKey(data.phone)) {
+      throw const AuthFailure(
+        'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+      );
+    }
     final user = AppUser(
       uid: 'mock-${DateTime.now().microsecondsSinceEpoch}',
       email: key,
       displayName: data.displayName,
     );
     _accounts[key] = _MockAccount(user: user, password: data.password);
+    _phoneOwners[data.phone] = user.uid;
     _setUser(user);
     return user;
   }

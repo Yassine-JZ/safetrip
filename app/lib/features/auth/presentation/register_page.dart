@@ -60,7 +60,7 @@ class _RegisterPageState extends State<RegisterPage> {
           firstName: _firstNameCtrl.text.trim(),
           lastName: _lastNameCtrl.text.trim(),
           email: _emailCtrl.text.trim(),
-          phone: _phoneCtrl.text.replaceAll(RegExp(r'[\s.-]'), ''),
+          phone: Validators.normalizePhone(_phoneCtrl.text),
           password: _passwordCtrl.text,
         ),
       );

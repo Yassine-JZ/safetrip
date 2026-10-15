@@ -24,6 +24,12 @@ void main() {
       expect(Validators.phone('1234'), isNotNull);
       expect(Validators.phone('012345678'), isNotNull);
     });
+
+    test('normalizes every accepted form to the same key', () {
+      expect(Validators.normalizePhone('20 123 456'), '+21620123456');
+      expect(Validators.normalizePhone('20.123-456'), '+21620123456');
+      expect(Validators.normalizePhone('+216 20 123 456'), '+21620123456');
+    });
   });
 
   group('Validators.newPassword', () {

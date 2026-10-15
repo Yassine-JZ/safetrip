@@ -31,15 +31,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Private contact data: owner and admins only.
+    // Private contact data: owner and admins only. The phone number must be
+    // reserved in /phone_numbers within the same batch.
     match /users_private/{uid} {
       allow read: if isVerifiedOwner(uid) || isAdmin();
       allow create: if isOwner(uid)
-        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt']);
-      allow update: if isVerifiedOwner(uid)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['phone']);
+        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt'])
+        && request.resource.data.phone.matches('^[+]216[2-9][0-9]{7}$')
+        && getAfter(/databases/$(database)/documents/phone_numbers/$(request.resource.data.phone)).data.uid == uid;
+      // Changing the number must also move its reservation (UC02).
+      allow update: if false;
       allow delete: if false;
+    }
+
+    // One account per phone number. The id is the E.164 number; writing an
+    // id that already exists is an update, which is always denied. Nobody
+    // can read these documents, so numbers cannot be looked up.
+    match /phone_numbers/{phone} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users_private/$(request.auth.uid)).data.phone == phone;
+      allow read, update, delete: if false;
     }
   }
 }
