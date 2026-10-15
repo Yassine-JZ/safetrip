@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:safetrip/app.dart';
+import 'package:safetrip/features/auth/data/auth_repository.dart';
 import 'package:safetrip/features/auth/data/mock_auth_repository.dart';
 
 Future<void> pumpApp(WidgetTester tester) async {
@@ -57,7 +58,9 @@ void main() {
     expect(find.text('Bon retour !'), findsOneWidget);
   });
 
-  testWidgets('registration without role choice reaches home', (tester) async {
+  testWidgets('registration requires e-mail verification before home', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.byKey(const Key('go_register')));
     await tester.pumpAndSettle();
@@ -97,6 +100,49 @@ void main() {
     await tester.tap(find.byKey(const Key('register_terms')));
     await tester.tap(find.byKey(const Key('register_submit')));
     await tester.pumpAndSettle();
+    expect(find.text('Vérifiez votre e-mail'), findsOneWidget);
+    expect(find.textContaining('salma@univ.tn'), findsOneWidget);
+    expect(find.textContaining('Bonjour'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('verify_check')));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Bonjour Salma Trabelsi'), findsOneWidget);
+  });
+
+  testWidgets('unverified account can resend the link or switch account', (
+    tester,
+  ) async {
+    final repository = MockAuthRepository();
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(
+      () => repository.register(
+        const RegistrationData(
+          firstName: 'Yassine',
+          lastName: 'Jaziri',
+          email: 'yassine@univ.tn',
+          phone: '22333444',
+          password: 'Safe2026',
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      SafeTripApp(authRepository: repository, demoMode: true, showIntro: false),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Vérifiez votre e-mail'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('verify_resend')));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Nouvel e-mail envoyé.'), findsOneWidget);
+    expect(find.textContaining('Renvoyer l\'e-mail ('), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 61));
+    expect(find.text('Renvoyer l\'e-mail'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('verify_sign_out')));
+    await tester.pumpAndSettle();
+    expect(find.text('Bon retour !'), findsOneWidget);
   });
 }

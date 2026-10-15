@@ -6,6 +6,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/auth/presentation/login_page.dart';
+import 'features/auth/presentation/verify_email_page.dart';
 import 'features/home/home_page.dart';
 import 'features/intro/intro_flow.dart';
 
@@ -47,11 +48,14 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (context.watch<AuthController>().status) {
+    final auth = context.watch<AuthController>();
+    switch (auth.status) {
       case AuthStatus.unknown:
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AuthStatus.authenticated:
-        return const HomePage();
+        return auth.emailVerified
+            ? const HomePage()
+            : VerifyEmailPage(demoMode: demoMode);
       case AuthStatus.unauthenticated:
         return LoginPage(demoMode: demoMode);
     }

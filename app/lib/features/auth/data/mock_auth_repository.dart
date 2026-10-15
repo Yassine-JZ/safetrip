@@ -11,6 +11,7 @@ class MockAuthRepository implements AuthRepository {
         uid: 'demo-uid',
         email: 'demo@safetrip.tn',
         displayName: 'Amine Ben Salah',
+        emailVerified: true,
       ),
       password: 'Demo1234',
     );
@@ -67,6 +68,32 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) async {
     await Future<void>.delayed(_latency);
+  }
+
+  /// In demo mode no e-mail is sent: the next [reloadUser] behaves as if the
+  /// link had been clicked.
+  @override
+  Future<void> sendEmailVerification() async {
+    await Future<void>.delayed(_latency);
+  }
+
+  @override
+  Future<AppUser?> reloadUser() async {
+    await Future<void>.delayed(_latency);
+    final current = _current;
+    if (current == null) return null;
+    final verified = AppUser(
+      uid: current.uid,
+      email: current.email,
+      displayName: current.displayName,
+      emailVerified: true,
+    );
+    _accounts[current.email] = _MockAccount(
+      user: verified,
+      password: _accounts[current.email]!.password,
+    );
+    _current = verified;
+    return verified;
   }
 
   @override

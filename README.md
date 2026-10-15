@@ -10,6 +10,10 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
 - **Connexion** par e-mail / mot de passe, affichage/masquage du mot de passe,
   messages d'erreur en français, état de chargement.
 - **Mot de passe oublié** : envoi d'un lien de réinitialisation (Firebase).
+- **Vérification de l'adresse e-mail** : un lien d'activation est envoyé (en français)
+  dès l'inscription ; tant qu'il n'est pas cliqué, l'utilisateur reste sur l'écran
+  « Vérifiez votre e-mail » (renvoi du lien avec délai de 60 s, changement de compte).
+  Seule une boîte e-mail réelle permet donc d'accéder à l'application.
 - **Inscription unique, sans choix de rôle** : prénom, nom, e-mail, téléphone,
   mot de passe (avec indicateur de robustesse) et confirmation, acceptation des conditions.
   Le mode conducteur s'activera plus tard depuis le profil (UC12).
@@ -81,7 +85,7 @@ app/lib/
 └── features/
     ├── auth/
     │   ├── data/                 # AuthRepository, implémentations Firebase et démo
-    │   └── presentation/         # AuthController, LoginPage, RegisterPage, widgets
+    │   └── presentation/         # AuthController, LoginPage, RegisterPage, VerifyEmailPage, widgets
     └── home/home_page.dart       # écran provisoire après connexion
 ```
 
@@ -89,7 +93,7 @@ app/lib/
 
 | Étape | Contenu |
 |------|---------|
-| 1 ✅ | Connexion, inscription, mot de passe oublié |
+| 1 ✅ | Connexion, inscription, mot de passe oublié, vérification de l'e-mail |
 | 2 | Profil, véhicule, activation / désactivation du mode conducteur (UC02, UC12) |
 | 3 | Fil d'offres, publication et recherche de trajets (UC08, UC13) |
 | 4 | Réservations atomiques via Cloud Functions, cycle du trajet (UC09, UC14, UC16, UC17) |

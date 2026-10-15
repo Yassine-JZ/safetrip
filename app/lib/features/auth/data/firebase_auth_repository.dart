@@ -11,12 +11,15 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
+  static const _emailLanguage = 'fr';
+
   AppUser? _map(User? user) => user == null
       ? null
       : AppUser(
           uid: user.uid,
           email: user.email ?? '',
           displayName: user.displayName,
+          emailVerified: user.emailVerified,
         );
 
   @override
@@ -70,6 +73,13 @@ class FirebaseAuthRepository implements AuthRepository {
       });
       await batch.commit();
 
+      try {
+        await _auth.setLanguageCode(_emailLanguage);
+        await user.sendEmailVerification();
+      } on FirebaseAuthException {
+        // The verification screen offers a resend button.
+      }
+
       return AppUser(
         uid: user.uid,
         email: user.email ?? data.email,
@@ -88,10 +98,39 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) async {
     try {
+      await _auth.setLanguageCode(_emailLanguage);
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
     }
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('Session expirée. Reconnectez-vous.');
+    }
+    try {
+      await _auth.setLanguageCode(_emailLanguage);
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_messageFor(e.code));
+    }
+  }
+
+  @override
+  Future<AppUser?> reloadUser() async {
+    try {
+      await _auth.currentUser?.reload();
+      final user = _auth.currentUser;
+      // Firestore rules read `email_verified` from the ID token, which keeps
+      // the old value until it is refreshed.
+      if (user != null && user.emailVerified) await user.getIdToken(true);
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_messageFor(e.code));
+    }
+    return _map(_auth.currentUser);
   }
 
   @override
