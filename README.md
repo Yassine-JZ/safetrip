@@ -20,9 +20,14 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
 
 ## Lancer le projet
 
-Prérequis : [Flutter](https://docs.flutter.dev/get-started/install) 3.x (stable).
+Prérequis : [Flutter](https://docs.flutter.dev/get-started/install) 3.47+ (stable) et,
+pour Android, le NDK 28.2 (Android Studio → SDK Manager → SDK Tools → NDK (Side by side)).
+
+Le projet Flutter se trouve dans le dossier `app/` : toutes les commandes `flutter`
+se lancent depuis ce dossier.
 
 ```bash
+cd app
 flutter pub get
 
 # Mode démo (aucune configuration Firebase nécessaire)
@@ -35,7 +40,7 @@ flutter run
 
 1. Créer un projet sur la [console Firebase](https://console.firebase.google.com), activer
    **Authentication → E-mail/Mot de passe** et **Cloud Firestore**.
-2. Installer les outils puis générer `lib/firebase_options.dart` :
+2. Installer les outils puis générer `app/lib/firebase_options.dart` (depuis `app/`) :
    ```bash
    dart pub global activate flutterfire_cli
    flutterfire configure
@@ -49,6 +54,7 @@ flutter run
 ## Tests
 
 ```bash
+cd app
 flutter analyze
 flutter test
 ```
@@ -56,7 +62,16 @@ flutter test
 ## Structure
 
 ```
-lib/
+safetrip/
+├── README.md
+└── app/                          # projet Flutter (pubspec.yaml, android/, ios/, web/)
+    ├── firestore.rules
+    ├── test/
+    └── lib/
+```
+
+```
+app/lib/
 ├── main.dart                     # choix Firebase / démo
 ├── app.dart                      # MaterialApp + AuthGate (redirection selon session)
 ├── firebase_options.dart         # remplacé par `flutterfire configure`
