@@ -7,16 +7,19 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/home/home_page.dart';
+import 'features/intro/intro_flow.dart';
 
 class SafeTripApp extends StatelessWidget {
   const SafeTripApp({
     super.key,
     required this.authRepository,
     this.demoMode = false,
+    this.showIntro = true,
   });
 
   final AuthRepository authRepository;
   final bool demoMode;
+  final bool showIntro;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +32,9 @@ class SafeTripApp extends StatelessWidget {
         locale: const Locale('fr'),
         supportedLocales: const [Locale('fr'), Locale('ar'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: AuthGate(demoMode: demoMode),
+        home: showIntro
+            ? IntroFlow(child: AuthGate(demoMode: demoMode))
+            : AuthGate(demoMode: demoMode),
       ),
     );
   }

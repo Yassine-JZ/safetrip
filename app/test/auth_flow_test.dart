@@ -8,7 +8,11 @@ Future<void> pumpApp(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    SafeTripApp(authRepository: MockAuthRepository(), demoMode: true),
+    SafeTripApp(
+      authRepository: MockAuthRepository(),
+      demoMode: true,
+      showIntro: false,
+    ),
   );
   await tester.pumpAndSettle();
 }
