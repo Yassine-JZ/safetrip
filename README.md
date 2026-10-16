@@ -14,9 +14,22 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
   dès l'inscription ; tant qu'il n'est pas cliqué, l'utilisateur reste sur l'écran
   « Vérifiez votre e-mail » (renvoi du lien avec délai de 60 s, changement de compte).
   Seule une boîte e-mail réelle permet donc d'accéder à l'application.
-- **Un numéro de téléphone = un seul compte** : le numéro est normalisé (`+216XXXXXXXX`)
-  et réservé dans `phone_numbers/{numéro}` dans le même lot que le profil ; les règles
-  Firestore refusent un numéro déjà pris et personne ne peut lire cette collection.
+- **Vérification du téléphone par SMS** : après l'e-mail, un code à 6 chiffres est envoyé
+  au numéro (`+216XXXXXXXX`). Le numéro est rattaché au compte Firebase uniquement après
+  saisie du code, et Firebase refuse un numéro déjà rattaché à un autre compte : un compte
+  avec un faux e-mail ne bloque donc aucun numéro. Les règles Firestore exigent e-mail
+  vérifié **et** téléphone confirmé.
+- **Mots de passe trop courants refusés** (`azerty123`, `password1`…).
+
+### Vérification par SMS : configuration Firebase
+
+1. Console → **Authentication → Méthode de connexion → Téléphone** : activer.
+2. Sans facturation (offre Spark), seuls les **numéros de test** fonctionnent :
+   même page, section « Numéros de téléphone pour les tests » (numéro + code fixe).
+   Les vrais SMS demandent l'offre **Blaze** (compte de facturation lié).
+3. Android : ajouter les empreintes **SHA-1** et **SHA-256** de la clé de signature dans
+   Paramètres du projet → Vos applications → application Android.
+4. En mode démo, le code SMS est `123456`.
 - **Inscription unique, sans choix de rôle** : prénom, nom, e-mail, téléphone,
   mot de passe (avec indicateur de robustesse) et confirmation, acceptation des conditions.
   Le mode conducteur s'activera plus tard depuis le profil (UC12).

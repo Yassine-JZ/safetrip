@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../data/auth_repository.dart';
 import 'auth_controller.dart';
 import 'widgets/auth_scaffold.dart';
 import 'widgets/error_banner.dart';
+import 'widgets/info_banner.dart';
 
 /// Shown to signed-in users whose address is not verified yet (UC01):
 /// only a real mailbox can receive the activation link.
@@ -104,7 +104,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final email = auth.user?.email ?? '';
-    final theme = Theme.of(context);
     final busy = auth.busy || _checking;
 
     return AuthScaffold(
@@ -116,39 +115,15 @@ class _VerifyEmailPageState extends State<VerifyEmailPage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_error != null) ErrorBanner(message: _error!),
-          if (_info != null) _InfoBanner(message: _info!),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.15),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.mark_email_unread_outlined,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.demoMode
-                        ? 'Mode démo : aucun e-mail n\'est envoyé. Appuyez '
-                              'sur « J\'ai vérifié mon e-mail » pour simuler '
-                              'le clic sur le lien.'
-                        : 'Pas reçu ? Regardez dans le dossier Spam ou '
-                              'Promotions, puis renvoyez l\'e-mail si besoin.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          if (_info != null) InfoBanner(message: _info!),
+          HintCard(
+            icon: Icons.mark_email_unread_outlined,
+            text: widget.demoMode
+                ? 'Mode démo : aucun e-mail n\'est envoyé. Appuyez sur '
+                      '« J\'ai vérifié mon e-mail » pour simuler le clic sur '
+                      'le lien.'
+                : 'Pas reçu ? Regardez dans le dossier Spam ou Promotions, '
+                      'puis renvoyez l\'e-mail si besoin.',
           ),
           const SizedBox(height: 24),
           FilledButton(
@@ -181,36 +156,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage>
             key: const Key('verify_sign_out'),
             onPressed: busy ? null : auth.signOut,
             child: const Text('Utiliser un autre compte'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.green.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline, color: AppColors.green),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: AppColors.green),
-            ),
           ),
         ],
       ),
