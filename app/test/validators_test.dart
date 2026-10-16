@@ -39,5 +39,11 @@ void main() {
       expect(Validators.newPassword('12345678'), isNotNull);
       expect(Validators.newPassword('Safe2026'), isNull);
     });
+
+    test('refuses very common passwords whatever the case', () {
+      expect(Validators.newPassword('Azerty123'), isNotNull);
+      expect(Validators.newPassword('PASSWORD123'), isNotNull);
+      expect(Validators.newPassword('safetrip123'), isNotNull);
+    });
   });
 }

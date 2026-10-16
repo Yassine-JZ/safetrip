@@ -57,8 +57,66 @@ class Validators {
         !value.contains(RegExp(r'\d'))) {
       return 'Doit contenir des lettres et des chiffres';
     }
+    if (_commonPasswords.contains(value.toLowerCase())) {
+      return 'Mot de passe trop courant, choisissez-en un autre';
+    }
     return null;
   }
+
+  // Passwords that pass the format rules but are among the first tried by
+  // attackers (international and local variants).
+  static const _commonPasswords = {
+    'password1',
+    'password12',
+    'password123',
+    'passw0rd',
+    'p4ssw0rd',
+    'motdepasse1',
+    'motdepasse123',
+    'azerty123',
+    'azerty1234',
+    'azertyuiop1',
+    'qwerty123',
+    'qwerty1234',
+    'qwertyuiop1',
+    'abc12345',
+    'abcd1234',
+    'abc123456',
+    '1234abcd',
+    '12345abc',
+    '123456abc',
+    '12345678a',
+    'a1234567',
+    'a12345678',
+    'aa123456',
+    'aa12345678',
+    'admin123',
+    'admin1234',
+    'welcome1',
+    'welcome123',
+    'iloveyou1',
+    'iloveyou123',
+    'bonjour1',
+    'bonjour123',
+    'soleil123',
+    'loulou123',
+    'chouchou1',
+    'doudou123',
+    'tunisie1',
+    'tunisie123',
+    'tunis123',
+    'tunisia123',
+    'safetrip1',
+    'safetrip123',
+    'safetrip2026',
+    'etudiant1',
+    'etudiant123',
+    'student123',
+    'football1',
+    'football123',
+    'test1234',
+    'test12345',
+  };
 
   /// 0 (vide) à 4 (fort).
   static int passwordStrength(String value) {
