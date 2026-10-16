@@ -35,6 +35,12 @@ class Validators {
     return null;
   }
 
+  /// E.164 form (`+216XXXXXXXX`), also used as the uniqueness key.
+  static String normalizePhone(String value) {
+    final compact = value.replaceAll(RegExp(r'[\s.-]'), '');
+    return compact.startsWith('+216') ? compact : '+216$compact';
+  }
+
   static String? loginPassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Le mot de passe est obligatoire';

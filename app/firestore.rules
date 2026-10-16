@@ -6,33 +6,53 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    // Only addresses whose activation link was clicked (UC01).
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    function isVerifiedOwner(uid) { return isOwner(uid) && verified(); }
 
-    // Public profile: readable by signed-in users. Users cannot grant
+    // Public profile: readable by verified users. Users cannot grant
     // themselves the driver capability here; UC12 will go through a Cloud
     // Function that checks the vehicle.
+    // Creation is allowed before verification because the documents are
+    // written right after sign-up, before the link can be clicked.
     match /users/{uid} {
-      allow read: if signedIn();
+      allow read: if verified() || isAdmin();
       allow create: if isOwner(uid)
         && request.resource.data.driverEnabled == false
         && request.resource.data.keys().hasOnly([
              'firstName', 'lastName', 'photoUrl', 'driverEnabled',
              'ratingAverage', 'ratingCount', 'createdAt'
            ]);
-      allow update: if isOwner(uid)
+      allow update: if isVerifiedOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['firstName', 'lastName', 'photoUrl']);
       allow delete: if false;
     }
 
-    // Private contact data: owner and admins only.
+    // Private contact data: owner and admins only. The phone number must be
+    // reserved in /phone_numbers within the same batch.
     match /users_private/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isVerifiedOwner(uid) || isAdmin();
       allow create: if isOwner(uid)
-        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt']);
-      allow update: if isOwner(uid)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['phone']);
+        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt'])
+        && request.resource.data.phone.matches('^[+]216[2-9][0-9]{7}$')
+        && getAfter(/databases/$(database)/documents/phone_numbers/$(request.resource.data.phone)).data.uid == uid;
+      // Changing the number must also move its reservation (UC02).
+      allow update: if false;
       allow delete: if false;
+    }
+
+    // One account per phone number. The id is the E.164 number; writing an
+    // id that already exists is an update, which is always denied. Nobody
+    // can read these documents, so numbers cannot be looked up.
+    match /phone_numbers/{phone} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users_private/$(request.auth.uid)).data.phone == phone;
+      allow read, update, delete: if false;
     }
   }
 }

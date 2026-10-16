@@ -5,11 +5,19 @@
 /// droits administrateur sont gérés côté serveur (custom claims), jamais dans
 /// le profil.
 class AppUser {
-  const AppUser({required this.uid, required this.email, this.displayName});
+  const AppUser({
+    required this.uid,
+    required this.email,
+    this.displayName,
+    this.emailVerified = false,
+  });
 
   final String uid;
   final String email;
   final String? displayName;
+
+  /// Faux tant que l'utilisateur n'a pas cliqué sur le lien reçu par e-mail.
+  final bool emailVerified;
 }
 
 class RegistrationData {
@@ -49,6 +57,12 @@ abstract class AuthRepository {
   Future<AppUser> register(RegistrationData data);
 
   Future<void> sendPasswordReset(String email);
+
+  Future<void> sendEmailVerification();
+
+  /// Fetches the latest account state (e.g. after the verification link was
+  /// clicked in another app).
+  Future<AppUser?> reloadUser();
 
   Future<void> signOut();
 }

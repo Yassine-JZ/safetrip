@@ -11,12 +11,15 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
+  static const _emailLanguage = 'fr';
+
   AppUser? _map(User? user) => user == null
       ? null
       : AppUser(
           uid: user.uid,
           email: user.email ?? '',
           displayName: user.displayName,
+          emailVerified: user.emailVerified,
         );
 
   @override
@@ -65,10 +68,34 @@ class FirebaseAuthRepository implements AuthRepository {
       });
       batch.set(_firestore.collection('users_private').doc(user.uid), {
         'email': data.email.trim(),
-        'phone': data.phone.trim(),
+        'phone': data.phone,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      await batch.commit();
+      // Rules reject this write when the number already belongs to someone,
+      // which makes the whole batch fail.
+      batch.set(_firestore.collection('phone_numbers').doc(data.phone), {
+        'uid': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      try {
+        await batch.commit();
+      } on FirebaseException catch (e) {
+        // Without its profile the account is unusable and would lock the
+        // e-mail address, so it is removed.
+        await _deleteQuietly(user);
+        throw AuthFailure(
+          e.code == 'permission-denied'
+              ? 'Ce numéro de téléphone est déjà utilisé par un autre compte.'
+              : 'Inscription impossible pour le moment. Réessayez.',
+        );
+      }
+
+      try {
+        await _auth.setLanguageCode(_emailLanguage);
+        await user.sendEmailVerification();
+      } on FirebaseAuthException {
+        // The verification screen offers a resend button.
+      }
 
       return AppUser(
         uid: user.uid,
@@ -77,21 +104,53 @@ class FirebaseAuthRepository implements AuthRepository {
       );
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
-    } on FirebaseException {
-      throw const AuthFailure(
-        'Compte créé, mais le profil n\'a pas pu être enregistré. '
-        'Réessayez depuis votre profil.',
-      );
+    }
+  }
+
+  Future<void> _deleteQuietly(User user) async {
+    try {
+      await user.delete();
+    } on FirebaseAuthException {
+      await _auth.signOut();
     }
   }
 
   @override
   Future<void> sendPasswordReset(String email) async {
     try {
+      await _auth.setLanguageCode(_emailLanguage);
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
     }
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('Session expirée. Reconnectez-vous.');
+    }
+    try {
+      await _auth.setLanguageCode(_emailLanguage);
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_messageFor(e.code));
+    }
+  }
+
+  @override
+  Future<AppUser?> reloadUser() async {
+    try {
+      await _auth.currentUser?.reload();
+      final user = _auth.currentUser;
+      // Firestore rules read `email_verified` from the ID token, which keeps
+      // the old value until it is refreshed.
+      if (user != null && user.emailVerified) await user.getIdToken(true);
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_messageFor(e.code));
+    }
+    return _map(_auth.currentUser);
   }
 
   @override

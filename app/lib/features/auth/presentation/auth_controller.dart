@@ -27,6 +27,7 @@ class AuthController extends ChangeNotifier {
   AuthStatus get status => _status;
   AppUser? get user => _user;
   bool get busy => _busy;
+  bool get emailVerified => _user?.emailVerified ?? false;
 
   Future<void> signIn(String email, String password) =>
       _run(() => _repository.signIn(email: email, password: password));
@@ -36,6 +37,26 @@ class AuthController extends ChangeNotifier {
 
   Future<void> sendPasswordReset(String email) =>
       _run(() => _repository.sendPasswordReset(email));
+
+  Future<void> resendEmailVerification() =>
+      _run(_repository.sendEmailVerification);
+
+  /// Returns whether the address is now verified. Throws [AuthFailure].
+  Future<bool> checkEmailVerified() async {
+    final AppUser? user;
+    try {
+      user = await _repository.reloadUser();
+    } on AuthFailure {
+      rethrow;
+    } catch (_) {
+      throw const AuthFailure('Une erreur est survenue. Réessayez.');
+    }
+    if (user != null) {
+      _user = user;
+      notifyListeners();
+    }
+    return user?.emailVerified ?? false;
+  }
 
   Future<void> signOut() => _repository.signOut();
 
