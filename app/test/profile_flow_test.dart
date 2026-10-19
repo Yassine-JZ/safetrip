@@ -4,6 +4,7 @@ import 'package:safetrip/app.dart';
 import 'package:safetrip/features/auth/data/mock_auth_repository.dart';
 import 'package:safetrip/features/profile/data/mock_profile_repository.dart';
 import 'package:safetrip/features/profile/data/profile_models.dart';
+import 'package:safetrip/features/trips/data/mock_trip_repository.dart';
 
 Future<void> signIn(WidgetTester tester) async {
   tester.view.physicalSize = const Size(1200, 2000);
@@ -14,6 +15,7 @@ Future<void> signIn(WidgetTester tester) async {
     SafeTripApp(
       authRepository: auth,
       profileRepository: MockProfileRepository(auth),
+      tripRepository: MockTripRepository(),
       demoMode: true,
       showIntro: false,
     ),
@@ -94,6 +96,7 @@ void main() {
       SafeTripApp(
         authRepository: auth,
         profileRepository: profiles,
+        tripRepository: MockTripRepository(),
         demoMode: true,
         showIntro: false,
       ),

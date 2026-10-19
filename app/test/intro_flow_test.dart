@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:safetrip/app.dart';
 import 'package:safetrip/features/auth/data/mock_auth_repository.dart';
 import 'package:safetrip/features/profile/data/mock_profile_repository.dart';
+import 'package:safetrip/features/trips/data/mock_trip_repository.dart';
 import 'package:safetrip/features/intro/splash_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,6 +12,7 @@ Widget demoApp() {
   return SafeTripApp(
     authRepository: auth,
     profileRepository: MockProfileRepository(auth),
+    tripRepository: MockTripRepository(),
     demoMode: true,
   );
 }
