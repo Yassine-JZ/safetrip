@@ -20,9 +20,25 @@ service cloud.firestore {
     function verified() { return emailVerified(); }
     function isVerifiedOwner(uid) { return isOwner(uid) && verified(); }
 
-    // Public profile: readable by verified users. Users cannot grant
-    // themselves the driver capability here; UC12 will go through a Cloud
-    // Function that checks the vehicle.
+    function vehiclePath(uid) {
+      return /databases/$(database)/documents/vehicles/$(uid);
+    }
+    // getAfter sees a vehicle written in the same batch (activation).
+    function vehicleReady(uid) {
+      return existsAfter(vehiclePath(uid))
+        && getAfter(vehiclePath(uid)).data.brand.size() >= 2
+        && getAfter(vehiclePath(uid)).data.plate.size() >= 4
+        && getAfter(vehiclePath(uid)).data.seats >= 1;
+    }
+    function photoOk() {
+      return request.resource.data.photoUrl == null
+        || (request.resource.data.photoUrl is string
+            && request.resource.data.photoUrl.size() < 700000
+            && request.resource.data.photoUrl.matches('^data:image/jpeg;base64,'));
+    }
+
+    // Public profile: readable by verified users. Driver mode can be turned
+    // on only when a valid vehicle exists, and never at account creation.
     // Creation is allowed before verification because the documents are
     // written right after sign-up, before the link can be clicked.
     match /users/{uid} {
@@ -33,9 +49,38 @@ service cloud.firestore {
              'firstName', 'lastName', 'photoUrl', 'driverEnabled',
              'ratingAverage', 'ratingCount', 'createdAt'
            ]);
-      allow update: if isVerifiedOwner(uid)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['firstName', 'lastName', 'photoUrl']);
+      allow update: if isVerifiedOwner(uid) && (
+        (request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['firstName', 'lastName', 'photoUrl'])
+          && photoOk()
+          && request.resource.data.firstName.size() >= 2
+          && request.resource.data.lastName.size() >= 2)
+        || (request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['driverEnabled'])
+            && request.resource.data.driverEnabled == false)
+        || (request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['driverEnabled'])
+            && request.resource.data.driverEnabled == true
+            && vehicleReady(uid))
+      );
+      allow delete: if false;
+    }
+
+    // Vehicle: owner and admins only, so the plate never reaches the feed.
+    match /vehicles/{uid} {
+      allow read: if isVerifiedOwner(uid) || isAdmin();
+      allow create, update: if isVerifiedOwner(uid)
+        && request.resource.data.keys().hasOnly([
+             'brand', 'plate', 'seats', 'updatedAt'
+           ])
+        && request.resource.data.brand is string
+        && request.resource.data.brand.size() >= 2
+        && request.resource.data.brand.size() <= 40
+        && request.resource.data.plate is string
+        && request.resource.data.plate.matches('^[0-9A-Z -]{4,15}$')
+        && request.resource.data.seats is int
+        && request.resource.data.seats >= 1
+        && request.resource.data.seats <= 8;
       allow delete: if false;
     }
 

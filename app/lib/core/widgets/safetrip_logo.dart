@@ -102,9 +102,12 @@ class _PinPainter extends CustomPainter {
 }
 
 class SafeTripWordmark extends StatelessWidget {
-  const SafeTripWordmark({super.key, this.fontSize = 44});
+  const SafeTripWordmark({super.key, this.fontSize = 44, this.light = false});
 
   final double fontSize;
+
+  /// White "Safe" for use on a photo or a dark background.
+  final bool light;
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +122,9 @@ class SafeTripWordmark extends StatelessWidget {
         children: [
           TextSpan(
             text: 'Safe',
-            style: style.copyWith(color: AppColors.primaryDark),
+            style: style.copyWith(
+              color: light ? Colors.white : AppColors.primaryDark,
+            ),
           ),
           TextSpan(
             text: 'Trip',

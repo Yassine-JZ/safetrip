@@ -5,6 +5,9 @@ import 'app.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/data/firebase_auth_repository.dart';
 import 'features/auth/data/mock_auth_repository.dart';
+import 'features/profile/data/firebase_profile_repository.dart';
+import 'features/profile/data/mock_profile_repository.dart';
+import 'features/profile/data/profile_repository.dart';
 import 'firebase_options.dart';
 
 /// `flutter run --dart-define=USE_FIREBASE=true` once `flutterfire configure`
@@ -19,19 +22,24 @@ const requirePhone = bool.fromEnvironment('REQUIRE_PHONE');
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final AuthRepository repository;
+  final AuthRepository authRepository;
+  final ProfileRepository profileRepository;
   if (useFirebase) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    repository = FirebaseAuthRepository();
+    authRepository = FirebaseAuthRepository();
+    profileRepository = FirebaseProfileRepository();
   } else {
-    repository = MockAuthRepository();
+    final demo = MockAuthRepository();
+    authRepository = demo;
+    profileRepository = MockProfileRepository(demo);
   }
 
   runApp(
     SafeTripApp(
-      authRepository: repository,
+      authRepository: authRepository,
+      profileRepository: profileRepository,
       demoMode: !useFirebase,
       requirePhoneVerification: requirePhone,
     ),

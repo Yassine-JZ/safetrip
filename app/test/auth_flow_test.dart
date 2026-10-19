@@ -3,14 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:safetrip/app.dart';
 import 'package:safetrip/features/auth/data/auth_repository.dart';
 import 'package:safetrip/features/auth/data/mock_auth_repository.dart';
+import 'package:safetrip/features/profile/data/mock_profile_repository.dart';
 
 Future<void> pumpApp(WidgetTester tester, {bool requirePhone = false}) async {
   tester.view.physicalSize = const Size(1200, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  final auth = MockAuthRepository();
   await tester.pumpWidget(
     SafeTripApp(
-      authRepository: MockAuthRepository(),
+      authRepository: auth,
+      profileRepository: MockProfileRepository(auth),
       demoMode: true,
       showIntro: false,
       requirePhoneVerification: requirePhone,
@@ -78,6 +81,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Bonjour Amine'), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('nav_profile')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('logout')));
     await tester.pumpAndSettle();
     expect(find.text('Bon retour !'), findsOneWidget);
@@ -224,7 +229,12 @@ void main() {
       ),
     );
     await tester.pumpWidget(
-      SafeTripApp(authRepository: repository, demoMode: true, showIntro: false),
+      SafeTripApp(
+        authRepository: repository,
+        profileRepository: MockProfileRepository(repository),
+        demoMode: true,
+        showIntro: false,
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('Vérifiez votre e-mail'), findsOneWidget);

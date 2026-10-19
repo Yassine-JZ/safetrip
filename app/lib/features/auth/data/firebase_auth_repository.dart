@@ -266,6 +266,33 @@ class FirebaseAuthRepository implements AuthRepository {
     return _map(_auth.currentUser)!;
   }
 
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _requireUser();
+    try {
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(
+          email: user.email ?? '',
+          password: currentPassword,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(
+        e.code == 'wrong-password' || e.code == 'invalid-credential'
+            ? 'Mot de passe actuel incorrect.'
+            : _messageFor(e.code),
+      );
+    }
+    try {
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      throw AuthFailure(_messageFor(e.code));
+    }
+  }
+
   User _requireUser() {
     final user = _auth.currentUser;
     if (user == null) {
