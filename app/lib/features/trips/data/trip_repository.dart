@@ -60,6 +60,9 @@ abstract class TripRepository {
     String? comment,
   });
 
+  /// Trips where [uid] is the driver or an accepted passenger (not cancelled).
+  Stream<List<Trip>> watchConversations(String uid);
+
   /// Driver + accepted passengers only.
   Stream<List<TripMessage>> watchMessages(String tripId);
 

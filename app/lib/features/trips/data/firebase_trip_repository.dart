@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'activity.dart';
@@ -369,6 +371,63 @@ class FirebaseTripRepository implements TripRepository {
 
   CollectionReference<Map<String, dynamic>> _messages(String tripId) =>
       _trips.doc(tripId).collection('messages');
+
+  @override
+  Stream<List<Trip>> watchConversations(String uid) {
+    late StreamController<List<Trip>> controller;
+    var mine = <Trip>[];
+    var bookings = <Reservation>[];
+    final subs = <StreamSubscription<dynamic>>[];
+    var emitting = false;
+
+    Future<void> publish() async {
+      if (emitting) return;
+      emitting = true;
+      try {
+        final map = <String, Trip>{};
+        for (final trip in mine) {
+          if (trip.status != TripStatus.cancelled) map[trip.id] = trip;
+        }
+        for (final booking in bookings) {
+          if (booking.status != ReservationStatus.accepted) continue;
+          if (map.containsKey(booking.tripId)) continue;
+          final snap = await _trips.doc(booking.tripId).get();
+          final data = snap.data();
+          if (!snap.exists || data == null) continue;
+          final trip = _trip(snap.id, data);
+          if (trip.status != TripStatus.cancelled) map[trip.id] = trip;
+        }
+        final list = map.values.toList()
+          ..sort((a, b) => b.departureAt.compareTo(a.departureAt));
+        if (!controller.isClosed) controller.add(list);
+      } finally {
+        emitting = false;
+      }
+    }
+
+    controller = StreamController<List<Trip>>(
+      onListen: () {
+        subs.add(
+          watchMine(uid).listen((value) {
+            mine = value;
+            publish();
+          }),
+        );
+        subs.add(
+          watchMyReservations(uid).listen((value) {
+            bookings = value;
+            publish();
+          }),
+        );
+      },
+      onCancel: () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+      },
+    );
+    return controller.stream;
+  }
 
   @override
   Stream<List<TripMessage>> watchMessages(String tripId) {

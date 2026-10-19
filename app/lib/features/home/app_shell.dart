@@ -7,9 +7,10 @@ import '../profile/presentation/profile_controller.dart';
 import '../profile/presentation/profile_page.dart';
 import '../trips/data/activity.dart';
 import '../trips/data/trip_repository.dart';
+import '../trips/presentation/messages_inbox_page.dart';
 import '../trips/presentation/my_reservations_page.dart';
-import '../trips/presentation/notifications_page.dart';
 import '../trips/presentation/my_trips_page.dart';
+import '../trips/presentation/notifications_page.dart';
 import 'home_page.dart';
 
 /// Bottom navigation shown once the account is activated.
@@ -52,6 +53,7 @@ class _AppShellState extends State<AppShell> {
             HomePage(initialDate: widget.initialSearchDate),
             const MyTripsPage(),
             const MyReservationsPage(),
+            const MessagesInboxPage(),
             const NotificationsPage(),
             const ProfilePage(),
           ],
@@ -83,6 +85,12 @@ class _AppShellState extends State<AppShell> {
                   icon: Icon(Icons.event_seat_outlined),
                   selectedIcon: Icon(Icons.event_seat),
                   label: 'Réservations',
+                ),
+                const NavigationDestination(
+                  key: Key('nav_messages'),
+                  icon: Icon(Icons.chat_bubble_outline),
+                  selectedIcon: Icon(Icons.chat_bubble),
+                  label: 'Messages',
                 ),
                 NavigationDestination(
                   key: const Key('nav_alerts'),

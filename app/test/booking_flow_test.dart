@@ -146,8 +146,12 @@ void main() {
     expect(find.text('Salma Trabelsi'), findsOneWidget);
     expect(find.byKey(const Key('no_passengers')), findsNothing);
 
-    await tester.ensureVisible(find.byKey(const Key('trip_chat')));
-    await tester.tap(find.byKey(const Key('trip_chat')));
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nav_messages')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('messages_list')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('conversation_trip-1')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('chat_empty')), findsOneWidget);
     await tester.enterText(
@@ -158,6 +162,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('RDV devant la fac'), findsOneWidget);
     await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nav_trips')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tunis → Nabeul'));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.byKey(const Key('trip_report')));

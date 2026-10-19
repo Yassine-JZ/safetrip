@@ -475,6 +475,33 @@ class MockTripRepository implements TripRepository {
   }
 
   @override
+  Stream<List<Trip>> watchConversations(String uid) {
+    return Stream<List<Trip>>.multi((multi) {
+      final sub = _changes.stream.listen((_) => multi.add(_conversations(uid)));
+      multi.onCancel = sub.cancel;
+      multi.add(_conversations(uid));
+    });
+  }
+
+  List<Trip> _conversations(String uid) {
+    final map = <String, Trip>{};
+    for (final trip in _trips.values) {
+      if (trip.status == TripStatus.cancelled) continue;
+      if (trip.driverId == uid) {
+        map[trip.id] = trip;
+        continue;
+      }
+      final reservation = _reservations[_key(trip.id, uid)];
+      if (reservation?.status == ReservationStatus.accepted) {
+        map[trip.id] = trip;
+      }
+    }
+    final list = map.values.toList()
+      ..sort((a, b) => b.departureAt.compareTo(a.departureAt));
+    return list;
+  }
+
+  @override
   Stream<List<TripMessage>> watchMessages(String tripId) {
     return Stream<List<TripMessage>>.multi((multi) {
       final sub = _changes.stream.listen((_) => multi.add(_messagesFor(tripId)));
