@@ -28,6 +28,7 @@ class FirebaseProfileRepository implements ProfileRepository {
           lastName: data['lastName'] as String? ?? '',
           photoUrl: data['photoUrl'] as String?,
           driverEnabled: data['driverEnabled'] as bool? ?? false,
+          suspended: data['suspended'] as bool? ?? false,
           ratingAverage: (data['ratingAverage'] as num?)?.toDouble(),
           ratingCount: (data['ratingCount'] as num?)?.toInt() ?? 0,
         );

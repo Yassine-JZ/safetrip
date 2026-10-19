@@ -7,6 +7,7 @@ import '../profile/presentation/profile_controller.dart';
 import '../profile/presentation/profile_page.dart';
 import '../trips/data/activity.dart';
 import '../trips/data/trip_repository.dart';
+import '../sos/presentation/sos_button.dart';
 import '../trips/presentation/messages_inbox_page.dart';
 import '../trips/presentation/my_reservations_page.dart';
 import '../trips/presentation/my_trips_page.dart';
@@ -46,7 +47,7 @@ class _AppShellState extends State<AppShell> {
         uid: user.uid,
         displayName: user.displayName ?? '',
       ),
-      child: Scaffold(
+      builder: (context, _) => Scaffold(
         body: IndexedStack(
           index: _index,
           children: [
@@ -57,6 +58,14 @@ class _AppShellState extends State<AppShell> {
             const NotificationsPage(),
             const ProfilePage(),
           ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          key: const Key('sos_fab'),
+          onPressed: () => openSosSheet(context),
+          backgroundColor: const Color(0xFFDC2626),
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.emergency_share),
+          label: const Text('SOS'),
         ),
         bottomNavigationBar: StreamBuilder(
           stream: notes,

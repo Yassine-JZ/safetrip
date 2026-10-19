@@ -586,6 +586,43 @@ class MockTripRepository implements TripRepository {
     return list;
   }
 
+  Stream<List<Report>> watchAllReports() {
+    return Stream<List<Report>>.multi((multi) {
+      final sub = _changes.stream.listen((_) => multi.add(_allReports()));
+      multi.onCancel = sub.cancel;
+      multi.add(_allReports());
+    });
+  }
+
+  List<Report> _allReports() {
+    final list = _reports.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
+  Future<void> setReportStatus(String reportId, String status) async {
+    final current = _reports[reportId];
+    if (current == null) {
+      throw const TripFailure('Signalement introuvable.');
+    }
+    if (status != 'open' && status != 'resolved' && status != 'dismissed') {
+      throw const TripFailure('Statut invalide.');
+    }
+    _reports[reportId] = Report(
+      id: current.id,
+      reporterId: current.reporterId,
+      reporterName: current.reporterName,
+      tripId: current.tripId,
+      targetUserId: current.targetUserId,
+      targetName: current.targetName,
+      reason: current.reason,
+      details: current.details,
+      status: status,
+      createdAt: current.createdAt,
+    );
+    _emit();
+  }
+
   @override
   Future<void> report({
     required String tripId,

@@ -53,6 +53,12 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
   (depuis le détail du trajet). Une alerte « Nouveau message » est créée.
 - **Signalement** : un participant peut signaler un autre (motif + détails),
   sans téléphone, matricule ni GPS. Stocké pour revue admin.
+- **Admin basique** : espace (Profil → Administration) pour lister les users,
+  suspendre / réactiver, traiter les signalements. Premier admin = document
+  Firestore `admins/{uid}` créé à la main (ou compte démo en mode démo).
+- **FCM** : enregistrement du token dans `fcm_tokens/{uid}` + notification
+  locale quand une alerte arrive app ouverte. Push app fermée = Cloud Function
+  (plan Blaze), pas inclus ici.
 - **Mode démo** sans Firebase (comptes en mémoire) : `demo@safetrip.tn` / `Demo1234`.
 
 ## Lancer le projet
@@ -143,5 +149,5 @@ app/lib/
 | 3 ✅ | Fil d'offres, publication et recherche de trajets (UC08, UC13) |
 | 4 ✅ | Réservation, acceptation, démarrage et fin du trajet (UC09, UC14, UC16, UC17) |
 | 5 ✅ | Notifications in-app, historique, évaluations (UC03, UC04, UC07) |
-| 6 ✅ partiel | Messagerie trajet + signalements (SOS GPS / admin plus tard) |
-| Phase 2 | Demandes de trajet, propositions, matching |
+| 6 ✅ partiel | Messagerie trajet + signalements + admin basique + FCM token |
+| Phase 2 | Demandes de trajet, propositions, matching, SOS GPS |

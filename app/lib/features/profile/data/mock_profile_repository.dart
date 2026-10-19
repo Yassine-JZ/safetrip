@@ -146,5 +146,20 @@ class MockProfileRepository implements ProfileRepository {
   void _setProfile(UserProfile profile) {
     _profiles[profile.uid] = profile;
     _controller(_profileStreams, profile.uid).add(profile);
+    if (!_all.isClosed) _all.add(null);
+  }
+
+  final _all = StreamController<void>.broadcast();
+
+  List<UserProfile> get allProfiles {
+    final list = _profiles.values.toList()
+      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+    return list;
+  }
+
+  Stream<void> watchAll() => _all.stream;
+
+  Future<void> setSuspended(String uid, bool suspended) async {
+    _setProfile(_require(uid).copyWith(suspended: suspended));
   }
 }

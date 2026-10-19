@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../admin/data/admin_repository.dart';
+import '../../admin/presentation/admin_page.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../trips/data/activity.dart';
 import '../../trips/data/trip_repository.dart';
@@ -115,6 +117,27 @@ class ProfilePage extends StatelessWidget {
                       icon: Icons.lock_outline,
                       title: 'Changer le mot de passe',
                       onTap: () => _open(context, const ChangePasswordPage()),
+                    ),
+                    StreamBuilder<bool>(
+                      stream: context
+                          .read<AdminRepository>()
+                          .watchIsAdmin(profile.uid),
+                      builder: (context, snapshot) {
+                        if (snapshot.data != true) {
+                          return const SizedBox.shrink();
+                        }
+                        return _MenuTile(
+                          key: const Key('menu_admin'),
+                          icon: Icons.admin_panel_settings_outlined,
+                          title: 'Espace administrateur',
+                          subtitle: 'Utilisateurs et signalements',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const AdminPage(),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     _MenuTile(
                       icon: Icons.info_outline,

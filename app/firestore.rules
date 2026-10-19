@@ -5,7 +5,18 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    // Custom claim `admin: true` OR document `admins/{uid}` (créé à la main
+    // dans la console pour le premier admin, sans Cloud Functions).
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.admin == true
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+    function notSuspended() {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('suspended', false) == false;
+    }
     function emailVerified() {
       return signedIn() && request.auth.token.email_verified == true;
     }
@@ -17,7 +28,55 @@ service cloud.firestore {
     // Activated account (UC01): e-mail link clicked. The SMS step is off in
     // the app for now (REQUIRE_PHONE); once it is on, also require
     // `confirmedPhone() != null` here.
-    function verified() { return emailVerified(); }
+    function verified() { return emailVerified() && notSuspended(); }
+
+    // Verified users may list admin UIDs to notify them on SOS.
+    match /admins/{uid} {
+      allow read: if verified() || isAdmin();
+      allow write: if false; // premier admin : création manuelle console
+    }
+
+    match /sos_alerts/{id} {
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      allow create: if verified()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.userName is string
+        && request.resource.data.userName.size() > 0
+        && request.resource.data.userName.size() <= 80
+        && request.resource.data.latitude is number
+        && request.resource.data.longitude is number
+        && request.resource.data.latitude >= -90
+        && request.resource.data.latitude <= 90
+        && request.resource.data.longitude >= -180
+        && request.resource.data.longitude <= 180
+        && (request.resource.data.accuracyMeters == null
+            || request.resource.data.accuracyMeters is number)
+        && (request.resource.data.tripId == null
+            || request.resource.data.tripId is string)
+        && (request.resource.data.note == null
+            || (request.resource.data.note is string
+                && request.resource.data.note.size() <= 200))
+        && request.resource.data.keys().hasOnly([
+             'userId', 'userName', 'latitude', 'longitude', 'accuracyMeters',
+             'tripId', 'note', 'status', 'createdAt'
+           ]);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['open', 'closed'];
+      allow delete: if false;
+    }
+
+    match /fcm_tokens/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 10
+        && request.resource.data.platform in ['android', 'ios', 'web'];
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
     function isVerifiedOwner(uid) { return isOwner(uid) && verified(); }
 
     function vehiclePath(uid) {
@@ -42,9 +101,13 @@ service cloud.firestore {
     // Creation is allowed before verification because the documents are
     // written right after sign-up, before the link can be clicked.
     match /users/{uid} {
-      allow read: if verified() || isAdmin();
+      // Owner can always read own profile (even if suspended) to see the block screen.
+      allow read: if isAdmin()
+        || (emailVerified() && isOwner(uid))
+        || verified();
       allow create: if isOwner(uid)
         && request.resource.data.driverEnabled == false
+        && request.resource.data.get('suspended', false) == false
         && request.resource.data.keys().hasOnly([
              'firstName', 'lastName', 'photoUrl', 'driverEnabled',
              'ratingAverage', 'ratingCount', 'createdAt'
@@ -63,6 +126,11 @@ service cloud.firestore {
             && request.resource.data.driverEnabled == true
             && vehicleReady(uid))
       );
+      // Admin may only flip the suspended flag (no plate / phone here).
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['suspended'])
+        && request.resource.data.suspended is bool;
       allow delete: if false;
     }
 
@@ -358,6 +426,10 @@ service cloud.firestore {
               || (exists(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(request.resource.data.recipientId))
                   && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(request.resource.data.recipientId)).data.status == 'accepted')
             ))
+          || (request.resource.data.type == 'sos_alert'
+            && request.resource.data.actorId == request.auth.uid
+            && exists(/databases/$(database)/documents/admins/$(request.resource.data.recipientId))
+            && existsAfter(/databases/$(database)/documents/sos_alerts/$(request.resource.data.tripId)))
         );
       allow update: if isOwner(resource.data.recipientId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])

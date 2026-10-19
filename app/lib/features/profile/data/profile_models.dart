@@ -6,6 +6,7 @@ class UserProfile {
     required this.lastName,
     this.photoUrl,
     this.driverEnabled = false,
+    this.suspended = false,
     this.ratingAverage,
     this.ratingCount = 0,
   });
@@ -18,9 +19,11 @@ class UserProfile {
   /// free plan), or `null`.
   final String? photoUrl;
   final bool driverEnabled;
+
+  /// Set by an admin. The app blocks access while true.
+  final bool suspended;
   final double? ratingAverage;
   final int ratingCount;
-
   String get fullName => '$firstName $lastName'.trim();
 
   String get initials {
@@ -33,12 +36,14 @@ class UserProfile {
     String? lastName,
     String? Function()? photoUrl,
     bool? driverEnabled,
+    bool? suspended,
   }) => UserProfile(
     uid: uid,
     firstName: firstName ?? this.firstName,
     lastName: lastName ?? this.lastName,
     photoUrl: photoUrl != null ? photoUrl() : this.photoUrl,
     driverEnabled: driverEnabled ?? this.driverEnabled,
+    suspended: suspended ?? this.suspended,
     ratingAverage: ratingAverage,
     ratingCount: ratingCount,
   );
