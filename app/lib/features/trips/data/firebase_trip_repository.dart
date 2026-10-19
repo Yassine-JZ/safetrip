@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'activity.dart';
 import 'reservation.dart';
 import 'trip.dart';
 import 'trip_repository.dart';
@@ -67,6 +68,16 @@ class FirebaseTripRepository implements TripRepository {
       final status = doc.data()['status'];
       if (status == 'pending' || status == 'accepted') {
         batch.update(doc.reference, {'status': 'cancelled'});
+        _setNote(
+          batch,
+          id: 'trip_cancelled_${tripId}_${doc.id}',
+          recipientId: doc.id,
+          actorId: driverId,
+          type: 'trip_cancelled',
+          tripId: tripId,
+          title: 'Trajet annulé',
+          body: 'Le conducteur a annulé le trajet.',
+        );
       }
     }
     await batch.commit();
@@ -82,8 +93,26 @@ class FirebaseTripRepository implements TripRepository {
   }
 
   @override
-  Future<void> start(String tripId, String driverId) =>
-      _guard(() => _trips.doc(tripId).update({'status': 'ongoing'}));
+  Future<void> start(String tripId, String driverId) => _guard(() async {
+    final accepted = await _reservations(tripId)
+        .where('status', isEqualTo: 'accepted')
+        .get();
+    final batch = _db.batch()
+      ..update(_trips.doc(tripId), {'status': 'ongoing'});
+    for (final doc in accepted.docs) {
+      _setNote(
+        batch,
+        id: 'trip_started_${tripId}_${doc.id}',
+        recipientId: doc.id,
+        actorId: driverId,
+        type: 'trip_started',
+        tripId: tripId,
+        title: 'Trajet démarré',
+        body: 'Le conducteur a démarré le trajet.',
+      );
+    }
+    await batch.commit();
+  });
 
   @override
   Future<void> finish(String tripId, String driverId) =>
@@ -114,16 +143,28 @@ class FirebaseTripRepository implements TripRepository {
     required String passengerId,
     required String passengerName,
     required int seats,
-  }) => _guard(
-    () => _reservations(trip.id).doc(passengerId).set({
-      'tripId': trip.id,
-      'passengerId': passengerId,
-      'passengerName': passengerName,
-      'seats': seats,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    }),
-  );
+  }) => _guard(() async {
+    final batch = _db.batch()
+      ..set(_reservations(trip.id).doc(passengerId), {
+        'tripId': trip.id,
+        'passengerId': passengerId,
+        'passengerName': passengerName,
+        'seats': seats,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    _setNote(
+      batch,
+      id: 'booking_request_${trip.id}_$passengerId',
+      recipientId: trip.driverId,
+      actorId: passengerId,
+      type: 'booking_request',
+      tripId: trip.id,
+      title: 'Nouvelle demande',
+      body: '$passengerName demande $seats place(s).',
+    );
+    await batch.commit();
+  });
 
   @override
   Future<void> acceptReservation(String tripId, String passengerId) => _guard(
@@ -147,12 +188,37 @@ class FirebaseTripRepository implements TripRepository {
         'acceptedCount': accepted + 1,
       });
       tx.update(resRef, {'status': 'accepted'});
+      _setNote(
+        tx,
+        id: 'booking_accepted_${tripId}_$passengerId',
+        recipientId: passengerId,
+        actorId: trip.data()?['driverId'] as String? ?? '',
+        type: 'booking_accepted',
+        tripId: tripId,
+        title: 'Demande acceptée',
+        body: 'Votre place est confirmée.',
+      );
     }),
   );
 
   @override
   Future<void> refuseReservation(String tripId, String passengerId) => _guard(
-    () => _reservations(tripId).doc(passengerId).update({'status': 'refused'}),
+    () async {
+      final trip = await _trips.doc(tripId).get();
+      final batch = _db.batch()
+        ..update(_reservations(tripId).doc(passengerId), {'status': 'refused'});
+      _setNote(
+        batch,
+        id: 'booking_refused_${tripId}_$passengerId',
+        recipientId: passengerId,
+        actorId: trip.data()?['driverId'] as String? ?? '',
+        type: 'booking_refused',
+        tripId: tripId,
+        title: 'Demande refusée',
+        body: 'Le conducteur a refusé votre demande.',
+      );
+      await batch.commit();
+    },
   );
 
   @override
@@ -166,6 +232,16 @@ class FirebaseTripRepository implements TripRepository {
       final seats = (res.data()?['seats'] as num?)?.toInt() ?? 0;
       if (status == 'pending') {
         tx.update(resRef, {'status': 'cancelled'});
+        _setNote(
+          tx,
+          id: 'booking_cancelled_${tripId}_$passengerId',
+          recipientId: trip.data()?['driverId'] as String? ?? '',
+          actorId: passengerId,
+          type: 'booking_cancelled',
+          tripId: tripId,
+          title: 'Demande annulée',
+          body: 'Un passager a annulé sa demande.',
+        );
         return;
       }
       if (status == 'accepted' && trip.data()?['status'] == 'planned') {
@@ -177,9 +253,117 @@ class FirebaseTripRepository implements TripRepository {
           'acceptedCount': accepted - 1,
         });
         tx.update(resRef, {'status': 'cancelled'});
+        _setNote(
+          tx,
+          id: 'booking_cancelled_${tripId}_$passengerId',
+          recipientId: trip.data()?['driverId'] as String? ?? '',
+          actorId: passengerId,
+          type: 'booking_cancelled',
+          tripId: tripId,
+          title: 'Réservation annulée',
+          body: 'Un passager a annulé sa place.',
+        );
         return;
       }
       throw const TripFailure('Cette réservation ne peut plus être annulée.');
+    }),
+  );
+
+  void _setNote(
+    Object writer, {
+    required String id,
+    required String recipientId,
+    required String actorId,
+    required String type,
+    required String tripId,
+    required String title,
+    required String body,
+  }) {
+    final ref = _db.collection('notifications').doc(id);
+    final data = {
+      'recipientId': recipientId,
+      'actorId': actorId,
+      'type': type,
+      'tripId': tripId,
+      'title': title,
+      'body': body,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    if (writer is WriteBatch) {
+      writer.set(ref, data);
+    } else if (writer is Transaction) {
+      writer.set(ref, data);
+    }
+  }
+
+  @override
+  Stream<List<AppNotification>> watchNotifications(String recipientId) {
+    return _db
+        .collection('notifications')
+        .where('recipientId', isEqualTo: recipientId)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map((doc) {
+            final data = doc.data();
+            return AppNotification(
+              id: doc.id,
+              recipientId: data['recipientId'] as String? ?? '',
+              actorId: data['actorId'] as String? ?? '',
+              type: data['type'] as String? ?? '',
+              tripId: data['tripId'] as String? ?? '',
+              title: data['title'] as String? ?? '',
+              body: data['body'] as String? ?? '',
+              read: data['read'] as bool? ?? false,
+              createdAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }).toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
+  }
+
+  @override
+  Future<void> markNotificationRead(String id, String recipientId) => _guard(
+    () => _db.collection('notifications').doc(id).update({'read': true}),
+  );
+
+  @override
+  Stream<List<Rating>> watchRatings(String targetId) {
+    return _db
+        .collection('ratings')
+        .where('targetId', isEqualTo: targetId)
+        .snapshots()
+        .map(
+          (snap) => snap.docs.map((doc) {
+            final data = doc.data();
+            return Rating(
+              tripId: data['tripId'] as String? ?? '',
+              authorId: data['authorId'] as String? ?? '',
+              targetId: data['targetId'] as String? ?? '',
+              stars: (data['stars'] as num?)?.toInt() ?? 1,
+              comment: data['comment'] as String?,
+            );
+          }).toList(),
+        );
+  }
+
+  @override
+  Future<void> rate({
+    required String tripId,
+    required String authorId,
+    required String targetId,
+    required int stars,
+    String? comment,
+  }) => _guard(
+    () => _db.collection('ratings').doc('${tripId}_${authorId}_$targetId').set({
+      'tripId': tripId,
+      'authorId': authorId,
+      'targetId': targetId,
+      'stars': stars,
+      'comment': comment,
+      'createdAt': FieldValue.serverTimestamp(),
     }),
   );
 

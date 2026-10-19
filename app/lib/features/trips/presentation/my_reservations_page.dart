@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../profile/presentation/profile_controller.dart';
 import '../data/places.dart';
 import '../data/reservation.dart';
 import '../data/trip.dart';
 import '../data/trip_repository.dart';
+import 'trip_detail_page.dart';
 import 'trip_format.dart';
 
 class MyReservationsPage extends StatefulWidget {
@@ -60,44 +62,61 @@ class _ReservationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final open =
-        item.status == ReservationStatus.pending ||
-        item.status == ReservationStatus.accepted;
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        title: Text(reservationStatusLabel(item.status)),
-        subtitle: StreamBuilder<Trip?>(
-          stream: context.read<TripRepository>().watchOne(item.tripId),
-          builder: (context, snapshot) {
-            final trip = snapshot.data;
-            final route = trip == null ? 'Trajet' : routeLabel(trip);
-            return Text('$route\n${item.seats} place(s)');
-          },
-        ),
-        isThreeLine: true,
-        trailing: open
-            ? TextButton(
-                key: Key('booking_cancel_${item.tripId}'),
-                onPressed: () async {
-                  try {
-                    await context.read<TripRepository>().cancelReservation(
-                      item.tripId,
-                      item.passengerId,
+    return StreamBuilder<Trip?>(
+      stream: context.read<TripRepository>().watchOne(item.tripId),
+      builder: (context, snapshot) {
+        final trip = snapshot.data;
+        final canCancel =
+            trip != null &&
+            trip.status == TripStatus.planned &&
+            (item.status == ReservationStatus.pending ||
+                item.status == ReservationStatus.accepted);
+        final route = trip == null ? 'Trajet' : routeLabel(trip);
+        return Card(
+          elevation: 0,
+          color: Colors.white,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            key: Key('booking_tile_${item.tripId}'),
+            onTap: trip == null
+                ? null
+                : () {
+                    final profile = context.read<ProfileController>();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ChangeNotifierProvider.value(
+                          value: profile,
+                          child: TripDetailPage(trip: trip),
+                        ),
+                      ),
                     );
-                  } on TripFailure catch (error) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text(error.message)));
-                    }
-                  }
-                },
-                child: const Text('Annuler'),
-              )
-            : null,
-      ),
+                  },
+            title: Text(reservationStatusLabel(item.status)),
+            subtitle: Text('$route\n${item.seats} place(s)'),
+            isThreeLine: true,
+            trailing: canCancel
+                ? TextButton(
+                    key: Key('booking_cancel_${item.tripId}'),
+                    onPressed: () async {
+                      try {
+                        await context.read<TripRepository>().cancelReservation(
+                          item.tripId,
+                          item.passengerId,
+                        );
+                      } on TripFailure catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(error.message)),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Annuler'),
+                  )
+                : null,
+          ),
+        );
+      },
     );
   }
 }

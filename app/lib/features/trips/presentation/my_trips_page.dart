@@ -85,23 +85,69 @@ class _MyTripsPageState extends State<MyTripsPage> {
             stream: _mine,
             builder: (context, snapshot) {
               final trips = snapshot.data ?? const <Trip>[];
-              if (trips.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: Text(
-                    'Vous n\'avez pas encore publié de trajet.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textMuted),
-                  ),
-                );
-              }
+              final upcoming = trips.where(
+                (trip) =>
+                    trip.status == TripStatus.planned ||
+                    trip.status == TripStatus.ongoing,
+              );
+              final past = trips.where(
+                (trip) =>
+                    trip.status == TripStatus.completed ||
+                    trip.status == TripStatus.cancelled,
+              );
               return Column(
-                children: [for (final trip in trips) TripCard(trip: trip)],
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _Heading('À venir'),
+                  if (upcoming.isEmpty)
+                    const _Empty('Aucun trajet à venir.')
+                  else
+                    for (final trip in upcoming) TripCard(trip: trip),
+                  const _Heading('Passés'),
+                  if (past.isEmpty)
+                    const _Empty('Aucun trajet passé.')
+                  else
+                    for (final trip in past) TripCard(trip: trip),
+                ],
               );
             },
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Heading extends StatelessWidget {
+  const _Heading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.primaryDark,
+        ),
+      ),
+    );
+  }
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(text, style: const TextStyle(color: AppColors.textMuted)),
     );
   }
 }

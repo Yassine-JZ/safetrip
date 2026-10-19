@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../trips/data/activity.dart';
+import '../../trips/data/trip_repository.dart';
 import 'change_password_page.dart';
 import 'driver_mode_page.dart';
 import 'edit_profile_page.dart';
@@ -86,8 +88,7 @@ class ProfilePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _StatsRow(
-                  ratingAverage: profile.ratingAverage,
-                  ratingCount: profile.ratingCount,
+                  uid: profile.uid,
                   driverEnabled: profile.driverEnabled,
                 ),
                 const SizedBox(height: 16),
@@ -284,47 +285,68 @@ class _DriverChip extends StatelessWidget {
   }
 }
 
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({
-    required this.ratingAverage,
-    required this.ratingCount,
-    required this.driverEnabled,
-  });
+class _StatsRow extends StatefulWidget {
+  const _StatsRow({required this.uid, required this.driverEnabled});
 
-  final double? ratingAverage;
-  final int ratingCount;
+  final String uid;
   final bool driverEnabled;
 
   @override
+  State<_StatsRow> createState() => _StatsRowState();
+}
+
+class _StatsRowState extends State<_StatsRow> {
+  late final Stream<List<Rating>> _ratings;
+
+  @override
+  void initState() {
+    super.initState();
+    _ratings = context.read<TripRepository>().watchRatings(widget.uid);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return _MenuCard(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Row(
-            children: [
-              _Stat(
-                value: ratingAverage == null
-                    ? '—'
-                    : '★ ${ratingAverage!.toStringAsFixed(1)}',
-                label: 'Note',
+    return StreamBuilder<List<Rating>>(
+      stream: _ratings,
+      builder: (context, snapshot) {
+        final ratings = snapshot.data ?? const <Rating>[];
+        final average = ratings.isEmpty
+            ? null
+            : ratings.map((rating) => rating.stars).reduce((a, b) => a + b) /
+                  ratings.length;
+        return _MenuCard(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Row(
+                children: [
+                  _Stat(
+                    value: average == null
+                        ? '—'
+                        : '★ ${average.toStringAsFixed(1)}',
+                    label: 'Note',
+                  ),
+                  _Stat(value: '${ratings.length}', label: 'Avis'),
+                  _Stat(
+                    value: widget.driverEnabled ? 'Oui' : 'Non',
+                    label: 'Conducteur',
+                  ),
+                ],
               ),
-              _Stat(value: '$ratingCount', label: 'Avis'),
-              _Stat(value: driverEnabled ? 'Oui' : 'Non', label: 'Conducteur'),
-            ],
-          ),
-        ),
-        if (ratingCount == 0)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: Text(
-              'Aucune évaluation pour le moment. Les avis arrivent après vos '
-              'premiers trajets terminés.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
             ),
-          ),
-      ],
+            if (ratings.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+                child: Text(
+                  'Aucune évaluation pour le moment. Les avis arrivent après vos '
+                  'premiers trajets terminés.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
