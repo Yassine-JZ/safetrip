@@ -123,6 +123,7 @@ service cloud.firestore {
         && data.seatsTotal >= 1
         && data.seatsTotal <= 8
         && data.seatsAvailable == data.seatsTotal
+        && data.acceptedCount == 0
         && data.seatsTotal <= get(vehiclePath(request.auth.uid)).data.seats
         && data.vehicleBrand == get(vehiclePath(request.auth.uid)).data.brand
         && (data.pricePerSeat == null
@@ -151,7 +152,7 @@ service cloud.firestore {
              'driverId', 'driverName', 'vehicleBrand', 'departureId',
              'destinationId', 'departureAt', 'seatsTotal', 'seatsAvailable',
              'pricePerSeat', 'description', 'luggage', 'roundTrip',
-             'status', 'createdAt'
+             'status', 'acceptedCount', 'createdAt'
            ])
         && tripDataOk(request.resource.data);
       allow update: if isVerifiedOwner(resource.data.driverId)
@@ -164,6 +165,23 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['status']))
           || (resource.data.status == 'planned'
+            && request.resource.data.status == 'ongoing'
+            && driverOn()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status']))
+          || (resource.data.status == 'ongoing'
+            && request.resource.data.status == 'completed'
+            && driverOn()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status']))
+          || (resource.data.status == 'planned'
+            && request.resource.data.status == 'planned'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['seatsAvailable', 'acceptedCount'])
+            && request.resource.data.seatsAvailable >= 0
+            && request.resource.data.seatsAvailable <= request.resource.data.seatsTotal
+            && request.resource.data.acceptedCount >= 0)
+          || (resource.data.status == 'planned'
             && resource.data.seatsAvailable == resource.data.seatsTotal
             && request.resource.data.status == 'planned'
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -174,7 +192,82 @@ service cloud.firestore {
                  ])
             && tripDataOk(request.resource.data))
         );
+      // The passenger gives the seats back while cancelling an accepted booking.
+      allow update: if verified()
+        && resource.data.status == 'planned'
+        && request.resource.data.status == 'planned'
+        && request.resource.data.driverId == resource.data.driverId
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['seatsAvailable', 'acceptedCount'])
+        && get(/databases/$(database)/documents/trips/$(tripId)/reservations/$(request.auth.uid)).data.status == 'accepted'
+        && getAfter(/databases/$(database)/documents/trips/$(tripId)/reservations/$(request.auth.uid)).data.status == 'cancelled'
+        && request.resource.data.seatsAvailable == resource.data.seatsAvailable
+             + get(/databases/$(database)/documents/trips/$(tripId)/reservations/$(request.auth.uid)).data.seats
+        && request.resource.data.acceptedCount == resource.data.get('acceptedCount', 0) - 1;
       allow delete: if false;
+
+      // One request per passenger. Pending does not take a seat; accepting does.
+      match /reservations/{passengerId} {
+        function trip() {
+          return get(/databases/$(database)/documents/trips/$(tripId)).data;
+        }
+        function tripAfter() {
+          return getAfter(/databases/$(database)/documents/trips/$(tripId)).data;
+        }
+        function isDriver() {
+          return isOwner(trip().driverId);
+        }
+
+        allow read: if verified() && (
+          isOwner(passengerId) || isDriver() || isAdmin()
+        );
+        allow create: if verified()
+          && isOwner(passengerId)
+          && passengerId != trip().driverId
+          && trip().status == 'planned'
+          && request.resource.data.keys().hasOnly([
+               'tripId', 'passengerId', 'passengerName', 'seats', 'status', 'createdAt'
+             ])
+          && request.resource.data.tripId == tripId
+          && request.resource.data.passengerId == passengerId
+          && request.resource.data.status == 'pending'
+          && request.resource.data.seats is int
+          && request.resource.data.seats >= 1
+          && request.resource.data.seats <= trip().seatsAvailable
+          && request.resource.data.passengerName is string
+          && request.resource.data.passengerName.size() >= 2
+          && request.resource.data.passengerName.size() <= 80;
+        allow update: if verified()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && (
+            (isOwner(passengerId)
+              && resource.data.status == 'pending'
+              && request.resource.data.status == 'cancelled'
+              && tripAfter().seatsAvailable == trip().seatsAvailable)
+            || (isOwner(passengerId)
+              && resource.data.status == 'accepted'
+              && request.resource.data.status == 'cancelled'
+              && trip().status == 'planned'
+              && tripAfter().seatsAvailable == trip().seatsAvailable + resource.data.seats
+              && tripAfter().acceptedCount == trip().get('acceptedCount', 0) - 1)
+            || (isDriver()
+              && driverOn()
+              && resource.data.status == 'pending'
+              && request.resource.data.status == 'accepted'
+              && trip().status == 'planned'
+              && tripAfter().seatsAvailable == trip().seatsAvailable - resource.data.seats
+              && tripAfter().acceptedCount == trip().get('acceptedCount', 0) + 1)
+            || (isDriver()
+              && resource.data.status == 'pending'
+              && request.resource.data.status == 'refused'
+              && tripAfter().seatsAvailable == trip().seatsAvailable)
+            || (isDriver()
+              && request.resource.data.status == 'cancelled'
+              && (resource.data.status == 'pending' || resource.data.status == 'accepted')
+              && tripAfter().status == 'cancelled')
+          );
+        allow delete: if false;
+      }
     }
   }
 }

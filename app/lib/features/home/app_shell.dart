@@ -5,6 +5,7 @@ import '../auth/presentation/auth_controller.dart';
 import '../profile/data/profile_repository.dart';
 import '../profile/presentation/profile_controller.dart';
 import '../profile/presentation/profile_page.dart';
+import '../trips/presentation/my_reservations_page.dart';
 import '../trips/presentation/my_trips_page.dart';
 import 'home_page.dart';
 
@@ -40,6 +41,7 @@ class _AppShellState extends State<AppShell> {
           children: [
             HomePage(initialDate: widget.initialSearchDate),
             const MyTripsPage(),
+            const MyReservationsPage(),
             const ProfilePage(),
           ],
         ),
@@ -58,6 +60,12 @@ class _AppShellState extends State<AppShell> {
               icon: Icon(Icons.route_outlined),
               selectedIcon: Icon(Icons.route),
               label: 'Mes trajets',
+            ),
+            NavigationDestination(
+              key: Key('nav_bookings'),
+              icon: Icon(Icons.event_seat_outlined),
+              selectedIcon: Icon(Icons.event_seat),
+              label: 'Réservations',
             ),
             NavigationDestination(
               key: Key('nav_profile'),

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import '../../auth/data/mock_auth_repository.dart';
+import '../../trips/data/trip.dart';
+import '../../trips/data/trip_repository.dart';
 import 'profile_models.dart';
 import 'profile_repository.dart';
 
@@ -16,8 +18,11 @@ class MockProfileRepository implements ProfileRepository {
   final _profileStreams = <String, StreamController<UserProfile?>>{};
   final _vehicleStreams = <String, StreamController<Vehicle?>>{};
 
-  /// Lets tests and the demo simulate trips that block deactivation.
+  /// Lets tests simulate a commitment without creating a trip.
   DriverCommitment commitment = DriverCommitment.none;
+
+  /// When set, a real ongoing trip or an accepted booking blocks deactivation.
+  TripRepository? trips;
 
   StreamController<T?> _controller<T>(
     Map<String, StreamController<T?>> streams,
@@ -104,7 +109,21 @@ class MockProfileRepository implements ProfileRepository {
   }
 
   @override
-  Future<DriverCommitment> driverCommitments(String uid) async => commitment;
+  Future<DriverCommitment> driverCommitments(String uid) async {
+    if (commitment != DriverCommitment.none) return commitment;
+    final source = trips;
+    if (source == null) return DriverCommitment.none;
+    final mine = await source.watchMine(uid).first;
+    if (mine.any((trip) => trip.status == TripStatus.ongoing)) {
+      return DriverCommitment.tripInProgress;
+    }
+    if (mine.any(
+      (trip) => trip.status == TripStatus.planned && trip.acceptedCount > 0,
+    )) {
+      return DriverCommitment.upcomingTripWithBookings;
+    }
+    return DriverCommitment.none;
+  }
 
   @override
   Future<void> setDriverEnabled(String uid, bool enabled) async {

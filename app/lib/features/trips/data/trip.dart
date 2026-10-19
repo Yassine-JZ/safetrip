@@ -12,6 +12,7 @@ class Trip {
     required this.departureAt,
     required this.seatsTotal,
     required this.seatsAvailable,
+    this.acceptedCount = 0,
     this.pricePerSeat,
     this.description,
     this.luggage = false,
@@ -28,6 +29,9 @@ class Trip {
   final DateTime departureAt;
   final int seatsTotal;
   final int seatsAvailable;
+
+  /// Accepted reservations. Pending ones do not count and do not take seats.
+  final int acceptedCount;
   final double? pricePerSeat;
   final String? description;
   final bool luggage;
@@ -43,6 +47,7 @@ class Trip {
     DateTime? departureAt,
     int? seatsTotal,
     int? seatsAvailable,
+    int? acceptedCount,
     double? Function()? pricePerSeat,
     String? Function()? description,
     bool? luggage,
@@ -59,6 +64,7 @@ class Trip {
       departureAt: departureAt ?? this.departureAt,
       seatsTotal: seatsTotal ?? this.seatsTotal,
       seatsAvailable: seatsAvailable ?? this.seatsAvailable,
+      acceptedCount: acceptedCount ?? this.acceptedCount,
       pricePerSeat: pricePerSeat != null ? pricePerSeat() : this.pricePerSeat,
       description: description != null ? description() : this.description,
       luggage: luggage ?? this.luggage,
