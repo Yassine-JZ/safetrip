@@ -59,4 +59,27 @@ abstract class TripRepository {
     required int stars,
     String? comment,
   });
+
+  /// Driver + accepted passengers only.
+  Stream<List<TripMessage>> watchMessages(String tripId);
+
+  Future<void> sendMessage({
+    required String tripId,
+    required String authorId,
+    required String authorName,
+    required String text,
+  });
+
+  Stream<List<Report>> watchMyReports(String reporterId);
+
+  /// Reporter must be a participant; target must be another participant.
+  Future<void> report({
+    required String tripId,
+    required String reporterId,
+    required String reporterName,
+    required String targetUserId,
+    required String targetName,
+    required String reason,
+    String? details,
+  });
 }

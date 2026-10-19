@@ -10,6 +10,8 @@ import '../data/reservation.dart';
 import '../data/trip.dart';
 import '../data/trip_repository.dart';
 import 'edit_trip_page.dart';
+import 'report_page.dart';
+import 'trip_chat_page.dart';
 import 'trip_format.dart';
 
 class TripDetailPage extends StatefulWidget {
@@ -206,6 +208,12 @@ class _TripDetailPageState extends State<TripDetailPage> {
                     ..._driverActions(trip)
                   else
                     ..._passengerActions(trip),
+                  if (uid != null && trip.status != TripStatus.cancelled)
+                    _ParticipantTools(
+                      trip: trip,
+                      uid: uid,
+                      reservations: _reservations,
+                    ),
                   if (trip.status == TripStatus.completed && uid != null)
                     _Ratings(trip: trip, uid: uid, reservations: _reservations),
                   if (mine) _Requests(tripId: trip.id, stream: _reservations),
@@ -267,6 +275,75 @@ class _TripDetailPageState extends State<TripDetailPage> {
         child: const Text('Réserver une place'),
       ),
     ];
+  }
+}
+
+class _ParticipantTools extends StatelessWidget {
+  const _ParticipantTools({
+    required this.trip,
+    required this.uid,
+    required this.reservations,
+  });
+
+  final Trip trip;
+  final String uid;
+  final Stream<List<Reservation>> reservations;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Reservation>>(
+      stream: reservations,
+      builder: (context, snapshot) {
+        final accepted = (snapshot.data ?? const <Reservation>[])
+            .where((item) => item.status == ReservationStatus.accepted)
+            .toList();
+        final me =
+            trip.driverId == uid ||
+            accepted.any((item) => item.passengerId == uid);
+        if (!me) return const SizedBox.shrink();
+        final profile = context.read<ProfileController>();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('trip_chat'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ChangeNotifierProvider.value(
+                      value: profile,
+                      child: TripChatPage(trip: trip),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Messages'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('trip_report'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ChangeNotifierProvider.value(
+                      value: profile,
+                      child: ReportPage(
+                        trip: trip,
+                        reservations: accepted,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.flag_outlined),
+              label: const Text('Signaler'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 

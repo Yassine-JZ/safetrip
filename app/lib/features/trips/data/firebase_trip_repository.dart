@@ -367,6 +367,147 @@ class FirebaseTripRepository implements TripRepository {
     }),
   );
 
+  CollectionReference<Map<String, dynamic>> _messages(String tripId) =>
+      _trips.doc(tripId).collection('messages');
+
+  @override
+  Stream<List<TripMessage>> watchMessages(String tripId) {
+    return _messages(tripId)
+        .orderBy('createdAt')
+        .snapshots()
+        .map(
+          (snap) => snap.docs.map((doc) {
+            final data = doc.data();
+            return TripMessage(
+              id: doc.id,
+              tripId: tripId,
+              authorId: data['authorId'] as String? ?? '',
+              authorName: data['authorName'] as String? ?? '',
+              text: data['text'] as String? ?? '',
+              createdAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }).toList(),
+        );
+  }
+
+  @override
+  Future<void> sendMessage({
+    required String tripId,
+    required String authorId,
+    required String authorName,
+    required String text,
+  }) => _guard(() async {
+    final cleaned = text.trim();
+    if (cleaned.isEmpty || cleaned.length > 500) {
+      throw const TripFailure('Le message doit faire entre 1 et 500 caractères.');
+    }
+    final tripSnap = await _trips.doc(tripId).get();
+    final tripData = tripSnap.data();
+    if (!tripSnap.exists || tripData == null) {
+      throw const TripFailure('Trajet introuvable.');
+    }
+    if ((tripData['status'] as String?) == 'cancelled') {
+      throw const TripFailure('Messagerie indisponible pour ce trajet.');
+    }
+    final driverId = tripData['driverId'] as String? ?? '';
+    final isDriver = driverId == authorId;
+    if (!isDriver) {
+      final reservation = await _reservations(tripId).doc(authorId).get();
+      if ((reservation.data()?['status'] as String?) != 'accepted') {
+        throw const TripFailure(
+          'Réservation acceptée requise pour écrire ici.',
+        );
+      }
+    }
+    final messageRef = _messages(tripId).doc();
+    final batch = _db.batch();
+    batch.set(messageRef, {
+      'authorId': authorId,
+      'authorName': authorName,
+      'text': cleaned,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    final recipients = <String>{};
+    if (!isDriver) recipients.add(driverId);
+    final accepted = await _reservations(tripId)
+        .where('status', isEqualTo: 'accepted')
+        .get();
+    for (final doc in accepted.docs) {
+      if (doc.id != authorId) recipients.add(doc.id);
+    }
+    final preview =
+        cleaned.length > 80 ? '${cleaned.substring(0, 80)}…' : cleaned;
+    for (final recipientId in recipients) {
+      _setNote(
+        batch,
+        id: 'trip_message_${messageRef.id}_$recipientId',
+        recipientId: recipientId,
+        actorId: authorId,
+        type: 'trip_message',
+        tripId: tripId,
+        title: 'Nouveau message',
+        body: '$authorName : $preview',
+      );
+    }
+    await batch.commit();
+  });
+
+  @override
+  Stream<List<Report>> watchMyReports(String reporterId) {
+    return _db
+        .collection('reports')
+        .where('reporterId', isEqualTo: reporterId)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map((doc) {
+            final data = doc.data();
+            return Report(
+              id: doc.id,
+              reporterId: data['reporterId'] as String? ?? '',
+              reporterName: data['reporterName'] as String? ?? '',
+              tripId: data['tripId'] as String? ?? '',
+              targetUserId: data['targetUserId'] as String? ?? '',
+              targetName: data['targetName'] as String? ?? '',
+              reason: data['reason'] as String? ?? '',
+              details: data['details'] as String?,
+              status: data['status'] as String? ?? 'open',
+              createdAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }).toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
+  }
+
+  @override
+  Future<void> report({
+    required String tripId,
+    required String reporterId,
+    required String reporterName,
+    required String targetUserId,
+    required String targetName,
+    required String reason,
+    String? details,
+  }) => _guard(() async {
+    if (!reportReasons.contains(reason)) {
+      throw const TripFailure('Motif de signalement invalide.');
+    }
+    final cleaned = details?.trim();
+    await _db.collection('reports').add({
+      'reporterId': reporterId,
+      'reporterName': reporterName,
+      'tripId': tripId,
+      'targetUserId': targetUserId,
+      'targetName': targetName,
+      'reason': reason,
+      'details': cleaned == null || cleaned.isEmpty ? null : cleaned,
+      'status': 'open',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  });
+
   Reservation _reservation(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const {};
     return Reservation(

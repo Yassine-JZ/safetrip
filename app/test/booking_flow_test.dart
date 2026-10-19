@@ -146,6 +146,35 @@ void main() {
     expect(find.text('Salma Trabelsi'), findsOneWidget);
     expect(find.byKey(const Key('no_passengers')), findsNothing);
 
+    await tester.ensureVisible(find.byKey(const Key('trip_chat')));
+    await tester.tap(find.byKey(const Key('trip_chat')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chat_empty')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('chat_input')),
+      'RDV devant la fac',
+    );
+    await tester.tap(find.byKey(const Key('chat_send')));
+    await tester.pumpAndSettle();
+    expect(find.text('RDV devant la fac'), findsOneWidget);
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('trip_report')));
+    await tester.tap(find.byKey(const Key('trip_report')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('report_target')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Salma Trabelsi').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('report_details')),
+      'Test signalement démo',
+    );
+    await tester.tap(find.byKey(const Key('report_send')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Signalement envoyé'), findsOneWidget);
+
     await tester.ensureVisible(find.byKey(const Key('trip_start')));
     await tester.tap(find.byKey(const Key('trip_start')));
     await tester.pumpAndSettle();
@@ -166,6 +195,7 @@ void main() {
     await tester.tap(find.byKey(const Key('nav_alerts')));
     await tester.pumpAndSettle();
     expect(find.text('Demande acceptée'), findsOneWidget);
+    expect(find.text('Nouveau message'), findsOneWidget);
     expect(find.text('Trajet démarré'), findsOneWidget);
     await tester.tap(find.byKey(const Key('nav_bookings')));
     await tester.pumpAndSettle();

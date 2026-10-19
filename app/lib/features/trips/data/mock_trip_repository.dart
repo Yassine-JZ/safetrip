@@ -10,10 +10,14 @@ class MockTripRepository implements TripRepository {
   final _reservations = <String, Reservation>{};
   final _notifications = <String, AppNotification>{};
   final _ratings = <String, Rating>{};
+  final _messages = <String, TripMessage>{};
+  final _reports = <String, Report>{};
   final _feed = StreamController<List<Trip>>.broadcast();
   final _changes = StreamController<void>.broadcast();
   final _mine = <String, StreamController<List<Trip>>>{};
   var _next = 1;
+  var _messageNext = 1;
+  var _reportNext = 1;
 
   void seed(Trip trip) {
     _trips[trip.id] = trip;
@@ -468,6 +472,135 @@ class MockTripRepository implements TripRepository {
     if (trip.driverId == uid) return true;
     final reservation = _reservations[_key(trip.id, uid)];
     return reservation?.status == ReservationStatus.accepted;
+  }
+
+  @override
+  Stream<List<TripMessage>> watchMessages(String tripId) {
+    return Stream<List<TripMessage>>.multi((multi) {
+      final sub = _changes.stream.listen((_) => multi.add(_messagesFor(tripId)));
+      multi.onCancel = sub.cancel;
+      multi.add(_messagesFor(tripId));
+    });
+  }
+
+  List<TripMessage> _messagesFor(String tripId) {
+    final list =
+        _messages.values.where((item) => item.tripId == tripId).toList();
+    list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return list;
+  }
+
+  @override
+  Future<void> sendMessage({
+    required String tripId,
+    required String authorId,
+    required String authorName,
+    required String text,
+  }) async {
+    final trip = _trips[tripId];
+    final cleaned = text.trim();
+    if (trip == null || trip.status == TripStatus.cancelled) {
+      throw const TripFailure('Messagerie indisponible pour ce trajet.');
+    }
+    if (!_participant(trip, authorId)) {
+      throw const TripFailure(
+        'Réservation acceptée requise pour écrire ici.',
+      );
+    }
+    if (cleaned.isEmpty || cleaned.length > 500) {
+      throw const TripFailure('Le message doit faire entre 1 et 500 caractères.');
+    }
+    final id = 'msg-${_messageNext++}';
+    _messages[id] = TripMessage(
+      id: id,
+      tripId: tripId,
+      authorId: authorId,
+      authorName: authorName,
+      text: cleaned,
+      createdAt: DateTime.now(),
+    );
+    final recipients = <String>{};
+    if (trip.driverId != authorId) recipients.add(trip.driverId);
+    for (final reservation in _reservations.values) {
+      if (reservation.tripId == tripId &&
+          reservation.status == ReservationStatus.accepted &&
+          reservation.passengerId != authorId) {
+        recipients.add(reservation.passengerId);
+      }
+    }
+    for (final recipientId in recipients) {
+      _note(
+        id: 'trip_message_${id}_$recipientId',
+        recipientId: recipientId,
+        actorId: authorId,
+        type: 'trip_message',
+        tripId: tripId,
+        title: 'Nouveau message',
+        body: '$authorName : ${cleaned.length > 80 ? '${cleaned.substring(0, 80)}…' : cleaned}',
+      );
+    }
+    _emit();
+  }
+
+  @override
+  Stream<List<Report>> watchMyReports(String reporterId) {
+    return Stream<List<Report>>.multi((multi) {
+      final sub = _changes.stream.listen((_) => multi.add(_reportsFor(reporterId)));
+      multi.onCancel = sub.cancel;
+      multi.add(_reportsFor(reporterId));
+    });
+  }
+
+  List<Report> _reportsFor(String reporterId) {
+    final list = _reports.values
+        .where((item) => item.reporterId == reporterId)
+        .toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
+  @override
+  Future<void> report({
+    required String tripId,
+    required String reporterId,
+    required String reporterName,
+    required String targetUserId,
+    required String targetName,
+    required String reason,
+    String? details,
+  }) async {
+    final trip = _trips[tripId];
+    if (trip == null) {
+      throw const TripFailure('Trajet introuvable.');
+    }
+    if (!_participant(trip, reporterId) || !_participant(trip, targetUserId)) {
+      throw const TripFailure(
+        'Vous ne pouvez signaler qu\'un participant du trajet.',
+      );
+    }
+    if (reporterId == targetUserId) {
+      throw const TripFailure('Vous ne pouvez pas vous signaler vous-même.');
+    }
+    if (!reportReasons.contains(reason)) {
+      throw const TripFailure('Motif de signalement invalide.');
+    }
+    final cleaned = details?.trim();
+    if (cleaned != null && cleaned.length > 500) {
+      throw const TripFailure('Détails trop longs (500 caractères max).');
+    }
+    final id = 'report-${_reportNext++}';
+    _reports[id] = Report(
+      id: id,
+      reporterId: reporterId,
+      reporterName: reporterName,
+      tripId: tripId,
+      targetUserId: targetUserId,
+      targetName: targetName,
+      reason: reason,
+      details: cleaned == null || cleaned.isEmpty ? null : cleaned,
+      createdAt: DateTime.now(),
+    );
+    _emit();
   }
 
   void _emit() {

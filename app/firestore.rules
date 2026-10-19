@@ -268,6 +268,34 @@ service cloud.firestore {
           );
       allow delete: if false;
       }
+
+      match /messages/{messageId} {
+        function trip() {
+          return get(/databases/$(database)/documents/trips/$(tripId)).data;
+        }
+        function isTripParticipant(uid) {
+          return trip().driverId == uid
+            || (exists(/databases/$(database)/documents/trips/$(tripId)/reservations/$(uid))
+                ? get(/databases/$(database)/documents/trips/$(tripId)/reservations/$(uid)).data.status == 'accepted'
+                : false);
+        }
+
+        allow read: if verified() && isTripParticipant(request.auth.uid);
+        allow create: if verified()
+          && isTripParticipant(request.auth.uid)
+          && trip().status != 'cancelled'
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() > 0
+          && request.resource.data.authorName.size() <= 80
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.keys().hasOnly([
+               'authorId', 'authorName', 'text', 'createdAt'
+             ]);
+        allow update, delete: if false;
+      }
     }
 
     match /notifications/{id} {
@@ -318,6 +346,18 @@ service cloud.firestore {
             && request.resource.data.actorId == noteTripAfter().driverId
             && noteTripAfter().status == 'ongoing'
             && noteReservation(request.resource.data.recipientId).status == 'accepted')
+          || (request.resource.data.type == 'trip_message'
+            && request.resource.data.actorId == request.auth.uid
+            && (
+              noteTrip().driverId == request.auth.uid
+              || (exists(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(request.auth.uid))
+                  && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(request.auth.uid)).data.status == 'accepted')
+            )
+            && (
+              noteTrip().driverId == request.resource.data.recipientId
+              || (exists(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(request.resource.data.recipientId))
+                  && get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(request.resource.data.recipientId)).data.status == 'accepted')
+            ))
         );
       allow update: if isOwner(resource.data.recipientId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
@@ -354,6 +394,45 @@ service cloud.firestore {
         && isParticipant(request.auth.uid)
         && isParticipant(request.resource.data.targetId);
       allow update, delete: if false;
+    }
+
+    match /reports/{id} {
+      function reportTrip() {
+        return get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data;
+      }
+      function reportParticipant(uid) {
+        return reportTrip().driverId == uid
+          || (exists(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(uid))
+              ? get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(uid)).data.status == 'accepted'
+              : false);
+      }
+
+      allow read: if isOwner(resource.data.reporterId) || isAdmin();
+      allow create: if verified()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetUserId != request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 80
+        && request.resource.data.reporterName is string
+        && request.resource.data.reporterName.size() > 0
+        && request.resource.data.reporterName.size() <= 80
+        && request.resource.data.targetName is string
+        && request.resource.data.targetName.size() > 0
+        && request.resource.data.targetName.size() <= 80
+        && (request.resource.data.details == null
+            || (request.resource.data.details is string
+                && request.resource.data.details.size() <= 500))
+        && request.resource.data.keys().hasOnly([
+             'reporterId', 'reporterName', 'tripId', 'targetUserId',
+             'targetName', 'reason', 'details', 'status', 'createdAt'
+           ])
+        && reportParticipant(request.auth.uid)
+        && reportParticipant(request.resource.data.targetUserId);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
     }
   }
 }

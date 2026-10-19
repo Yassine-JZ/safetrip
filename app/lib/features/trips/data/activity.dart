@@ -40,3 +40,58 @@ class Rating {
   final int stars;
   final String? comment;
 }
+
+/// Short chat message between the driver and accepted passengers of one trip.
+class TripMessage {
+  const TripMessage({
+    required this.id,
+    required this.tripId,
+    required this.authorId,
+    required this.authorName,
+    required this.text,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String tripId;
+  final String authorId;
+  final String authorName;
+  final String text;
+  final DateTime createdAt;
+}
+
+/// Reasons a verified user can flag another participant or a trip.
+const reportReasons = <String>[
+  'Comportement inapproprié',
+  'Retard ou non-présentation',
+  'Annulation abusive',
+  'Harcèlement',
+  'Autre',
+];
+
+/// One signalement stored for later admin review (no phone / plate / GPS).
+class Report {
+  const Report({
+    required this.id,
+    required this.reporterId,
+    required this.reporterName,
+    required this.tripId,
+    required this.targetUserId,
+    required this.targetName,
+    required this.reason,
+    required this.createdAt,
+    this.details,
+    this.status = 'open',
+  });
+
+  final String id;
+  final String reporterId;
+  final String reporterName;
+  final String tripId;
+  final String targetUserId;
+  final String targetName;
+  final String reason;
+  final String? details;
+  final String status;
+  final DateTime createdAt;
+}

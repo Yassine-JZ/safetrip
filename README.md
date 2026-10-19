@@ -49,6 +49,10 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
 - **Évaluations (UC04)** : après un trajet terminé, conducteur et passagers
   confirmés peuvent se noter (1 à 5 étoiles + commentaire). La moyenne apparaît
   sur le profil.
+- **Messagerie** : chat simple entre le conducteur et les passagers acceptés
+  (depuis le détail du trajet). Une alerte « Nouveau message » est créée.
+- **Signalement** : un participant peut signaler un autre (motif + détails),
+  sans téléphone, matricule ni GPS. Stocké pour revue admin.
 - **Mode démo** sans Firebase (comptes en mémoire) : `demo@safetrip.tn` / `Demo1234`.
 
 ## Lancer le projet
@@ -138,6 +142,6 @@ app/lib/
 | 2 ✅ | Profil, véhicule, activation / désactivation du mode conducteur (UC02, UC12) |
 | 3 ✅ | Fil d'offres, publication et recherche de trajets (UC08, UC13) |
 | 4 ✅ | Réservation, acceptation, démarrage et fin du trajet (UC09, UC14, UC16, UC17) |
-| 5 | Notifications FCM, historique, évaluations (UC03, UC04, UC07) |
-| 6 | SOS avec instantané GPS, signalements, espace administrateur, journal d'accès |
+| 5 ✅ | Notifications in-app, historique, évaluations (UC03, UC04, UC07) |
+| 6 ✅ partiel | Messagerie trajet + signalements (SOS GPS / admin plus tard) |
 | Phase 2 | Demandes de trajet, propositions, matching |
