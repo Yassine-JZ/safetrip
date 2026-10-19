@@ -1,3 +1,4 @@
+import 'activity.dart';
 import 'reservation.dart';
 import 'trip.dart';
 
@@ -43,4 +44,19 @@ abstract class TripRepository {
 
   /// Passenger withdraws a pending request, or an accepted one before departure.
   Future<void> cancelReservation(String tripId, String passengerId);
+
+  Stream<List<AppNotification>> watchNotifications(String recipientId);
+
+  Future<void> markNotificationRead(String id, String recipientId);
+
+  Stream<List<Rating>> watchRatings(String targetId);
+
+  /// Only after the trip is finished, between two different participants.
+  Future<void> rate({
+    required String tripId,
+    required String authorId,
+    required String targetId,
+    required int stars,
+    String? comment,
+  });
 }

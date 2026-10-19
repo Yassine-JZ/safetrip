@@ -41,6 +41,14 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
   et termine son trajet, et voit les passagers confirmés. Il ne peut pas réserver
   son propre trajet. La désactivation du mode conducteur est bloquée s'il a une
   réservation acceptée ou un trajet en cours.
+- **Notifications (UC07)** : centre d'alertes (onglet Alertes) pour demandes,
+  acceptations / refus, démarrage et annulation de trajet. Un badge indique les
+  non lues ; un tap ouvre le détail du trajet.
+- **Historique (UC03)** : les trajets terminés ou annulés restent visibles dans
+  « Mes trajets » et « Mes réservations ».
+- **Évaluations (UC04)** : après un trajet terminé, conducteur et passagers
+  confirmés peuvent se noter (1 à 5 étoiles + commentaire). La moyenne apparaît
+  sur le profil.
 - **Mode démo** sans Firebase (comptes en mémoire) : `demo@safetrip.tn` / `Demo1234`.
 
 ## Lancer le projet

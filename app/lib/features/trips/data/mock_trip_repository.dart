@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'activity.dart';
 import 'reservation.dart';
 import 'trip.dart';
 import 'trip_repository.dart';
@@ -7,6 +8,8 @@ import 'trip_repository.dart';
 class MockTripRepository implements TripRepository {
   final _trips = <String, Trip>{};
   final _reservations = <String, Reservation>{};
+  final _notifications = <String, AppNotification>{};
+  final _ratings = <String, Rating>{};
   final _feed = StreamController<List<Trip>>.broadcast();
   final _changes = StreamController<void>.broadcast();
   final _mine = <String, StreamController<List<Trip>>>{};
@@ -72,6 +75,15 @@ class MockTripRepository implements TripRepository {
           seats: reservation.seats,
           status: ReservationStatus.cancelled,
         );
+        _note(
+          id: 'trip_cancelled_${tripId}_${reservation.passengerId}',
+          recipientId: reservation.passengerId,
+          actorId: driverId,
+          type: 'trip_cancelled',
+          tripId: tripId,
+          title: 'Trajet annulé',
+          body: 'Le conducteur a annulé le trajet.',
+        );
       }
     }
     _emit();
@@ -93,6 +105,18 @@ class MockTripRepository implements TripRepository {
       throw const TripFailure('Seul un trajet prévu peut démarrer.');
     }
     _trips[tripId] = trip.copyWith(status: TripStatus.ongoing);
+    for (final reservation in _forTrip(tripId)) {
+      if (reservation.status != ReservationStatus.accepted) continue;
+      _note(
+        id: 'trip_started_${tripId}_${reservation.passengerId}',
+        recipientId: reservation.passengerId,
+        actorId: driverId,
+        type: 'trip_started',
+        tripId: tripId,
+        title: 'Trajet démarré',
+        body: 'Le conducteur a démarré le trajet.',
+      );
+    }
     _emit();
   }
 
@@ -161,6 +185,15 @@ class MockTripRepository implements TripRepository {
       seats: seats,
       status: ReservationStatus.pending,
     );
+    _note(
+      id: 'booking_request_${current.id}_$passengerId',
+      recipientId: current.driverId,
+      actorId: passengerId,
+      type: 'booking_request',
+      tripId: current.id,
+      title: 'Nouvelle demande',
+      body: '$passengerName demande $seats place(s).',
+    );
     _emit();
   }
 
@@ -189,6 +222,15 @@ class MockTripRepository implements TripRepository {
       seats: reservation.seats,
       status: ReservationStatus.accepted,
     );
+    _note(
+      id: 'booking_accepted_${tripId}_$passengerId',
+      recipientId: passengerId,
+      actorId: trip.driverId,
+      type: 'booking_accepted',
+      tripId: tripId,
+      title: 'Demande acceptée',
+      body: 'Votre place est confirmée.',
+    );
     _emit();
   }
 
@@ -205,6 +247,16 @@ class MockTripRepository implements TripRepository {
       passengerName: reservation.passengerName,
       seats: reservation.seats,
       status: ReservationStatus.refused,
+    );
+    final driverId = _trips[tripId]?.driverId ?? '';
+    _note(
+      id: 'booking_refused_${tripId}_$passengerId',
+      recipientId: passengerId,
+      actorId: driverId,
+      type: 'booking_refused',
+      tripId: tripId,
+      title: 'Demande refusée',
+      body: 'Le conducteur a refusé votre demande.',
     );
     _emit();
   }
@@ -224,6 +276,15 @@ class MockTripRepository implements TripRepository {
         seats: reservation.seats,
         status: ReservationStatus.cancelled,
       );
+      _note(
+        id: 'booking_cancelled_${tripId}_$passengerId',
+        recipientId: trip.driverId,
+        actorId: passengerId,
+        type: 'booking_cancelled',
+        tripId: tripId,
+        title: 'Demande annulée',
+        body: '${reservation.passengerName} a annulé sa demande.',
+      );
       _emit();
       return;
     }
@@ -239,6 +300,15 @@ class MockTripRepository implements TripRepository {
         passengerName: reservation.passengerName,
         seats: reservation.seats,
         status: ReservationStatus.cancelled,
+      );
+      _note(
+        id: 'booking_cancelled_${tripId}_$passengerId',
+        recipientId: trip.driverId,
+        actorId: passengerId,
+        type: 'booking_cancelled',
+        tripId: tripId,
+        title: 'Réservation annulée',
+        body: '${reservation.passengerName} a annulé sa place.',
       );
       _emit();
       return;
@@ -280,6 +350,125 @@ class MockTripRepository implements TripRepository {
 
   StreamController<List<Trip>> _controller(String driverId) =>
       _mine.putIfAbsent(driverId, StreamController<List<Trip>>.broadcast);
+
+  void _note({
+    required String id,
+    required String recipientId,
+    required String actorId,
+    required String type,
+    required String tripId,
+    required String title,
+    required String body,
+  }) {
+    _notifications.putIfAbsent(
+      id,
+      () => AppNotification(
+        id: id,
+        recipientId: recipientId,
+        actorId: actorId,
+        type: type,
+        tripId: tripId,
+        title: title,
+        body: body,
+        read: false,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Stream<List<AppNotification>> watchNotifications(String recipientId) {
+    return Stream<List<AppNotification>>.multi((multi) {
+      final sub = _changes.stream.listen(
+        (_) => multi.add(_notesFor(recipientId)),
+      );
+      multi.onCancel = sub.cancel;
+      multi.add(_notesFor(recipientId));
+    });
+  }
+
+  List<AppNotification> _notesFor(String recipientId) {
+    final list = _notifications.values
+        .where((note) => note.recipientId == recipientId)
+        .toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
+  @override
+  Future<void> markNotificationRead(String id, String recipientId) async {
+    final note = _notifications[id];
+    if (note == null || note.recipientId != recipientId) return;
+    _notifications[id] = AppNotification(
+      id: note.id,
+      recipientId: note.recipientId,
+      actorId: note.actorId,
+      type: note.type,
+      tripId: note.tripId,
+      title: note.title,
+      body: note.body,
+      read: true,
+      createdAt: note.createdAt,
+    );
+    _emit();
+  }
+
+  @override
+  Stream<List<Rating>> watchRatings(String targetId) {
+    return Stream<List<Rating>>.multi((multi) {
+      final sub = _changes.stream.listen(
+        (_) => multi.add(_ratingsFor(targetId)),
+      );
+      multi.onCancel = sub.cancel;
+      multi.add(_ratingsFor(targetId));
+    });
+  }
+
+  List<Rating> _ratingsFor(String targetId) =>
+      _ratings.values.where((rating) => rating.targetId == targetId).toList();
+
+  @override
+  Future<void> rate({
+    required String tripId,
+    required String authorId,
+    required String targetId,
+    required int stars,
+    String? comment,
+  }) async {
+    final trip = _trips[tripId];
+    if (trip == null || trip.status != TripStatus.completed) {
+      throw const TripFailure('Vous pourrez noter après la fin du trajet.');
+    }
+    if (authorId == targetId) {
+      throw const TripFailure('Vous ne pouvez pas vous noter vous-même.');
+    }
+    if (stars < 1 || stars > 5) {
+      throw const TripFailure('La note va de 1 à 5.');
+    }
+    if (!_participant(trip, authorId) || !_participant(trip, targetId)) {
+      throw const TripFailure(
+        'Seuls les participants du trajet peuvent noter.',
+      );
+    }
+    final id = '${tripId}_${authorId}_$targetId';
+    if (_ratings.containsKey(id)) {
+      throw const TripFailure('Vous avez déjà noté cette personne.');
+    }
+    _ratings[id] = Rating(
+      tripId: tripId,
+      authorId: authorId,
+      targetId: targetId,
+      stars: stars,
+      comment: comment,
+    );
+    _emit();
+  }
+
+  bool _participant(Trip trip, String uid) {
+    if (trip.driverId == uid) return true;
+    final reservation = _reservations[_key(trip.id, uid)];
+    return reservation?.status == ReservationStatus.accepted;
+  }
 
   void _emit() {
     if (!_changes.isClosed) _changes.add(null);

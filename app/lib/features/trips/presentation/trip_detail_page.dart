@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../profile/presentation/profile_controller.dart';
+import '../data/activity.dart';
 import '../data/places.dart';
 import '../data/reservation.dart';
 import '../data/trip.dart';
@@ -205,6 +206,8 @@ class _TripDetailPageState extends State<TripDetailPage> {
                     ..._driverActions(trip)
                   else
                     ..._passengerActions(trip),
+                  if (trip.status == TripStatus.completed && uid != null)
+                    _Ratings(trip: trip, uid: uid, reservations: _reservations),
                   if (mine) _Requests(tripId: trip.id, stream: _reservations),
                 ],
               ),
@@ -348,6 +351,168 @@ class _Requests extends StatelessWidget {
                     ],
                   ),
                 ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Ratings extends StatelessWidget {
+  const _Ratings({
+    required this.trip,
+    required this.uid,
+    required this.reservations,
+  });
+
+  final Trip trip;
+  final String uid;
+  final Stream<List<Reservation>> reservations;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Reservation>>(
+      stream: reservations,
+      builder: (context, snapshot) {
+        final accepted = (snapshot.data ?? const <Reservation>[]).where(
+          (item) => item.status == ReservationStatus.accepted,
+        );
+        final me =
+            trip.driverId == uid ||
+            accepted.any((item) => item.passengerId == uid);
+        if (!me) return const SizedBox.shrink();
+        final targets = <String, String>{};
+        if (uid != trip.driverId) targets[trip.driverId] = trip.driverName;
+        for (final item in accepted) {
+          if (item.passengerId != uid) {
+            targets[item.passengerId] = item.passengerName;
+          }
+        }
+        if (targets.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 24),
+            const Text(
+              'Évaluer',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            for (final entry in targets.entries)
+              _RateTarget(
+                tripId: trip.id,
+                authorId: uid,
+                targetId: entry.key,
+                name: entry.value,
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _RateTarget extends StatefulWidget {
+  const _RateTarget({
+    required this.tripId,
+    required this.authorId,
+    required this.targetId,
+    required this.name,
+  });
+
+  final String tripId;
+  final String authorId;
+  final String targetId;
+  final String name;
+
+  @override
+  State<_RateTarget> createState() => _RateTargetState();
+}
+
+class _RateTargetState extends State<_RateTarget> {
+  late final Stream<List<Rating>> _ratings;
+  int _stars = 5;
+  final _comment = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _ratings = context.read<TripRepository>().watchRatings(widget.targetId);
+  }
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Rating>>(
+      stream: _ratings,
+      builder: (context, snapshot) {
+        final done = (snapshot.data ?? const <Rating>[]).any(
+          (rating) =>
+              rating.tripId == widget.tripId &&
+              rating.authorId == widget.authorId,
+        );
+        if (done) {
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(widget.name),
+            subtitle: const Text('Note envoyée'),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(widget.name),
+            Row(
+              children: [
+                for (var star = 1; star <= 5; star++)
+                  IconButton(
+                    key: Key('star_${widget.targetId}_$star'),
+                    onPressed: () => setState(() => _stars = star),
+                    icon: Icon(
+                      star <= _stars ? Icons.star : Icons.star_border,
+                      color: AppColors.accent,
+                    ),
+                  ),
+              ],
+            ),
+            TextField(
+              key: Key('rating_comment_${widget.targetId}'),
+              controller: _comment,
+              maxLength: 300,
+              decoration: const InputDecoration(
+                labelText: 'Commentaire (facultatif)',
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton(
+                key: Key('rating_send_${widget.targetId}'),
+                onPressed: () async {
+                  try {
+                    await context.read<TripRepository>().rate(
+                      tripId: widget.tripId,
+                      authorId: widget.authorId,
+                      targetId: widget.targetId,
+                      stars: _stars,
+                      comment: _comment.text.trim().isEmpty
+                          ? null
+                          : _comment.text.trim(),
+                    );
+                  } on TripFailure catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(error.message)));
+                    }
+                  }
+                },
+                child: const Text('Envoyer la note'),
+              ),
+            ),
           ],
         );
       },

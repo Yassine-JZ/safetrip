@@ -266,8 +266,94 @@ service cloud.firestore {
               && (resource.data.status == 'pending' || resource.data.status == 'accepted')
               && tripAfter().status == 'cancelled')
           );
-        allow delete: if false;
+      allow delete: if false;
       }
+    }
+
+    match /notifications/{id} {
+      function noteTrip() {
+        return get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data;
+      }
+      function noteTripAfter() {
+        return getAfter(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data;
+      }
+      function noteReservation(uid) {
+        return get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(uid)).data;
+      }
+      function noteReservationAfter(uid) {
+        return getAfter(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(uid)).data;
+      }
+
+      allow read: if isOwner(resource.data.recipientId) || isAdmin();
+      allow create: if verified()
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.recipientId != request.auth.uid
+        && request.resource.data.read == false
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.body is string
+        && request.resource.data.body.size() <= 180
+        && request.resource.data.keys().hasOnly([
+             'recipientId', 'actorId', 'type', 'tripId', 'title', 'body', 'read', 'createdAt'
+           ])
+        && (
+          (request.resource.data.type == 'booking_request'
+            && request.resource.data.recipientId == noteTrip().driverId
+            && noteReservationAfter(request.auth.uid).status == 'pending')
+          || (request.resource.data.type == 'booking_accepted'
+            && request.resource.data.actorId == noteTrip().driverId
+            && noteReservationAfter(request.resource.data.recipientId).status == 'accepted')
+          || (request.resource.data.type == 'booking_refused'
+            && request.resource.data.actorId == noteTrip().driverId
+            && noteReservationAfter(request.resource.data.recipientId).status == 'refused')
+          || (request.resource.data.type == 'booking_cancelled'
+            && request.resource.data.recipientId == noteTrip().driverId
+            && noteReservationAfter(request.auth.uid).status == 'cancelled')
+          || (request.resource.data.type == 'trip_cancelled'
+            && request.resource.data.actorId == noteTripAfter().driverId
+            && noteTripAfter().status == 'cancelled'
+            && noteReservationAfter(request.resource.data.recipientId).status == 'cancelled')
+          || (request.resource.data.type == 'trip_started'
+            && request.resource.data.actorId == noteTripAfter().driverId
+            && noteTripAfter().status == 'ongoing'
+            && noteReservation(request.resource.data.recipientId).status == 'accepted')
+        );
+      allow update: if isOwner(resource.data.recipientId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
+      allow delete: if false;
+    }
+
+    match /ratings/{id} {
+      function ratedTrip() {
+        return get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)).data;
+      }
+      function isParticipant(uid) {
+        return ratedTrip().driverId == uid
+          || (exists(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(uid))
+              ? get(/databases/$(database)/documents/trips/$(request.resource.data.tripId)/reservations/$(uid)).data.status == 'accepted'
+              : false);
+      }
+
+      allow read: if verified();
+      allow create: if verified()
+        && id == request.resource.data.tripId + '_' + request.resource.data.authorId + '_' + request.resource.data.targetId
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.targetId != request.auth.uid
+        && request.resource.data.stars is int
+        && request.resource.data.stars >= 1
+        && request.resource.data.stars <= 5
+        && (request.resource.data.comment == null
+            || (request.resource.data.comment is string
+                && request.resource.data.comment.size() <= 300))
+        && request.resource.data.keys().hasOnly([
+             'tripId', 'authorId', 'targetId', 'stars', 'comment', 'createdAt'
+           ])
+        && ratedTrip().status == 'completed'
+        && isParticipant(request.auth.uid)
+        && isParticipant(request.resource.data.targetId);
+      allow update, delete: if false;
     }
   }
 }
