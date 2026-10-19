@@ -14,22 +14,11 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
   dès l'inscription ; tant qu'il n'est pas cliqué, l'utilisateur reste sur l'écran
   « Vérifiez votre e-mail » (renvoi du lien avec délai de 60 s, changement de compte).
   Seule une boîte e-mail réelle permet donc d'accéder à l'application.
-- **Vérification du téléphone par SMS** : après l'e-mail, un code à 6 chiffres est envoyé
-  au numéro (`+216XXXXXXXX`). Le numéro est rattaché au compte Firebase uniquement après
-  saisie du code, et Firebase refuse un numéro déjà rattaché à un autre compte : un compte
-  avec un faux e-mail ne bloque donc aucun numéro. Les règles Firestore exigent e-mail
-  vérifié **et** téléphone confirmé.
+- **Vérification du téléphone par SMS (désactivée pour le moment)** : écran prêt qui envoie
+  un code à 6 chiffres au numéro (`+216XXXXXXXX`) ; Firebase refuse un numéro déjà rattaché
+  à un autre compte. Activable avec `--dart-define=REQUIRE_PHONE=true` une fois l'envoi de
+  SMS fonctionnel (voir plus bas). Sans cette option, seul l'e-mail est vérifié.
 - **Mots de passe trop courants refusés** (`azerty123`, `password1`…).
-
-### Vérification par SMS : configuration Firebase
-
-1. Console → **Authentication → Méthode de connexion → Téléphone** : activer.
-2. Sans facturation (offre Spark), seuls les **numéros de test** fonctionnent :
-   même page, section « Numéros de téléphone pour les tests » (numéro + code fixe).
-   Les vrais SMS demandent l'offre **Blaze** (compte de facturation lié).
-3. Android : ajouter les empreintes **SHA-1** et **SHA-256** de la clé de signature dans
-   Paramètres du projet → Vos applications → application Android.
-4. En mode démo, le code SMS est `123456`.
 - **Inscription unique, sans choix de rôle** : prénom, nom, e-mail, téléphone,
   mot de passe (avec indicateur de robustesse) et confirmation, acceptation des conditions.
   Le mode conducteur s'activera plus tard depuis le profil (UC12).
@@ -70,6 +59,17 @@ flutter run
    ```bash
    flutter run --dart-define=USE_FIREBASE=true
    ```
+
+### Vérification par SMS (optionnelle)
+
+1. Console → **Authentication → Méthode de connexion → Téléphone** : activer, et ajouter
+   des **numéros de test** (numéro + code fixe) pour essayer sans envoyer de vrai SMS.
+2. Android : ajouter les empreintes **SHA-1** et **SHA-256** de la clé de signature dans
+   Paramètres du projet → Vos applications → application Android.
+3. Lancer avec `--dart-define=REQUIRE_PHONE=true` ; en cas d'échec, la cause exacte
+   s'affiche dans le terminal (`SafeTrip SMS: …`).
+4. Dans `firestore.rules`, ajouter `confirmedPhone() != null` à `verified()`.
+5. En mode démo, le code SMS est `123456`.
 
 ## Tests
 

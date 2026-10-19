@@ -283,6 +283,8 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   static String _phoneMessageFor(FirebaseAuthException e) {
+    // Several causes (region policy, provider, app check) share one code.
+    debugPrint('SafeTrip SMS: ${e.code} ${e.message}');
     final details = '${e.code} ${e.message}'.toUpperCase();
     if (details.contains('BILLING_NOT_ENABLED')) {
       return 'L\'envoi de SMS n\'est pas activé sur ce projet Firebase '

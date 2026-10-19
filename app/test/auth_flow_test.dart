@@ -4,7 +4,7 @@ import 'package:safetrip/app.dart';
 import 'package:safetrip/features/auth/data/auth_repository.dart';
 import 'package:safetrip/features/auth/data/mock_auth_repository.dart';
 
-Future<void> pumpApp(WidgetTester tester) async {
+Future<void> pumpApp(WidgetTester tester, {bool requirePhone = false}) async {
   tester.view.physicalSize = const Size(1200, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -13,6 +13,7 @@ Future<void> pumpApp(WidgetTester tester) async {
       authRepository: MockAuthRepository(),
       demoMode: true,
       showIntro: false,
+      requirePhoneVerification: requirePhone,
     ),
   );
   await tester.pumpAndSettle();
@@ -82,10 +83,33 @@ void main() {
     expect(find.text('Bon retour !'), findsOneWidget);
   });
 
-  testWidgets('sign-up requires e-mail then SMS verification before home', (
+  testWidgets('by default only the e-mail is verified before home', (
     tester,
   ) async {
     await pumpApp(tester);
+    await tester.tap(find.byKey(const Key('go_register')));
+    await tester.pumpAndSettle();
+    await fillRegisterForm(
+      tester,
+      firstName: 'Nour',
+      lastName: 'Gharbi',
+      email: 'nour@univ.tn',
+      phone: '22333444',
+    );
+    await tester.tap(find.byKey(const Key('register_submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vérifiez votre e-mail'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('verify_check')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vérifiez votre numéro'), findsNothing);
+    expect(find.textContaining('Bonjour Nour Gharbi'), findsOneWidget);
+  });
+
+  testWidgets('with SMS on, sign-up needs e-mail then SMS before home', (
+    tester,
+  ) async {
+    await pumpApp(tester, requirePhone: true);
     await tester.tap(find.byKey(const Key('go_register')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Conducteur'), findsNothing);
@@ -135,10 +159,10 @@ void main() {
     expect(find.textContaining('Bonjour Salma Trabelsi'), findsOneWidget);
   });
 
-  testWidgets('a number confirmed by another account is refused', (
+  testWidgets('with SMS on, a number confirmed elsewhere is refused', (
     tester,
   ) async {
-    await pumpApp(tester);
+    await pumpApp(tester, requirePhone: true);
     await tester.tap(find.byKey(const Key('go_register')));
     await tester.pumpAndSettle();
     // Same number as the demo account, typed in another format.

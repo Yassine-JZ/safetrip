@@ -14,8 +14,10 @@ service cloud.firestore {
     function confirmedPhone() {
       return signedIn() ? request.auth.token.get('phone_number', null) : null;
     }
-    // Fully activated account (UC01): e-mail link clicked and SMS code typed.
-    function verified() { return emailVerified() && confirmedPhone() != null; }
+    // Activated account (UC01): e-mail link clicked. The SMS step is off in
+    // the app for now (REQUIRE_PHONE); once it is on, also require
+    // `confirmedPhone() != null` here.
+    function verified() { return emailVerified(); }
     function isVerifiedOwner(uid) { return isOwner(uid) && verified(); }
 
     // Public profile: readable by verified users. Users cannot grant
