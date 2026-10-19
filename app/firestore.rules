@@ -98,5 +98,83 @@ service cloud.firestore {
         && request.resource.data.phone == confirmedPhone();
       allow delete: if false;
     }
+
+    function knownPlace(id) {
+      return id in [
+        'tunis', 'ariana', 'ben_arous', 'manouba', 'marsa', 'nabeul',
+        'hammamet', 'bizerte', 'sousse', 'monastir', 'sfax'
+      ];
+    }
+    function driverOn() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.driverEnabled == true;
+    }
+    function tripDataOk(data) {
+      return data.driverName is string
+        && data.driverName.size() >= 2
+        && data.driverName.size() <= 80
+        && data.vehicleBrand is string
+        && data.vehicleBrand.size() >= 2
+        && data.vehicleBrand.size() <= 40
+        && knownPlace(data.departureId)
+        && knownPlace(data.destinationId)
+        && data.departureId != data.destinationId
+        && data.departureAt > request.time
+        && data.seatsTotal is int
+        && data.seatsTotal >= 1
+        && data.seatsTotal <= 8
+        && data.seatsAvailable == data.seatsTotal
+        && data.seatsTotal <= get(vehiclePath(request.auth.uid)).data.seats
+        && data.vehicleBrand == get(vehiclePath(request.auth.uid)).data.brand
+        && (data.pricePerSeat == null
+            || (data.pricePerSeat is number
+                && data.pricePerSeat >= 0
+                && data.pricePerSeat <= 500))
+        && (data.description == null
+            || (data.description is string && data.description.size() <= 300))
+        && data.luggage is bool
+        && data.roundTrip is bool;
+    }
+
+    // Trips. The plate is not a field, so it cannot leak into the feed.
+    // A planned trip is cancelled, never deleted.
+    match /trips/{tripId} {
+      allow read: if verified() && (
+        resource.data.status != 'cancelled'
+        || isOwner(resource.data.driverId)
+        || isAdmin()
+      );
+      allow create: if verified()
+        && driverOn()
+        && request.resource.data.driverId == request.auth.uid
+        && request.resource.data.status == 'planned'
+        && request.resource.data.keys().hasOnly([
+             'driverId', 'driverName', 'vehicleBrand', 'departureId',
+             'destinationId', 'departureAt', 'seatsTotal', 'seatsAvailable',
+             'pricePerSeat', 'description', 'luggage', 'roundTrip',
+             'status', 'createdAt'
+           ])
+        && tripDataOk(request.resource.data);
+      allow update: if isVerifiedOwner(resource.data.driverId)
+        && request.resource.data.driverId == resource.data.driverId
+        && request.resource.data.vehicleBrand == resource.data.vehicleBrand
+        && request.resource.data.driverName == resource.data.driverName
+        && (
+          (resource.data.status == 'planned'
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status']))
+          || (resource.data.status == 'planned'
+            && resource.data.seatsAvailable == resource.data.seatsTotal
+            && request.resource.data.status == 'planned'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly([
+                   'departureId', 'destinationId', 'departureAt',
+                   'seatsTotal', 'seatsAvailable', 'pricePerSeat',
+                   'description', 'luggage', 'roundTrip'
+                 ])
+            && tripDataOk(request.resource.data))
+        );
+      allow delete: if false;
+    }
   }
 }

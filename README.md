@@ -32,6 +32,9 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
   La désactivation est refusée si un trajet à venir a des réservations acceptées
   ou si un trajet est en cours (ces trajets arrivent avec UC13 ; le contrôle est
   déjà branché).
+- **Trajets (UC08, UC13)** : publier (mode conducteur actif), modifier et annuler.
+  Départ et destination choisis dans une liste. Recherche par départ, destination,
+  date et nombre de places. Le matricule n'est jamais dans le fil ni le détail.
 - **Mode démo** sans Firebase (comptes en mémoire) : `demo@safetrip.tn` / `Demo1234`.
 
 ## Lancer le projet
@@ -119,7 +122,7 @@ app/lib/
 |------|---------|
 | 1 ✅ | Connexion, inscription, mot de passe oublié, vérification de l'e-mail |
 | 2 ✅ | Profil, véhicule, activation / désactivation du mode conducteur (UC02, UC12) |
-| 3 | Fil d'offres, publication et recherche de trajets (UC08, UC13) |
+| 3 ✅ | Fil d'offres, publication et recherche de trajets (UC08, UC13) |
 | 4 | Réservations atomiques via Cloud Functions, cycle du trajet (UC09, UC14, UC16, UC17) |
 | 5 | Notifications FCM, historique, évaluations (UC03, UC04, UC07) |
 | 6 | SOS avec instantané GPS, signalements, espace administrateur, journal d'accès |

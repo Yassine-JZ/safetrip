@@ -11,20 +11,25 @@ import 'features/auth/presentation/verify_phone_page.dart';
 import 'features/home/app_shell.dart';
 import 'features/intro/intro_flow.dart';
 import 'features/profile/data/profile_repository.dart';
+import 'features/trips/data/trip_repository.dart';
 
 class SafeTripApp extends StatelessWidget {
   const SafeTripApp({
     super.key,
     required this.authRepository,
     required this.profileRepository,
+    required this.tripRepository,
     this.demoMode = false,
+    this.initialSearchDate,
     this.showIntro = true,
     this.requirePhoneVerification = false,
   });
 
   final AuthRepository authRepository;
   final ProfileRepository profileRepository;
+  final TripRepository tripRepository;
   final bool demoMode;
+  final DateTime? initialSearchDate;
   final bool showIntro;
 
   /// SMS step after the e-mail one. Off until SMS sending works on the
@@ -36,11 +41,13 @@ class SafeTripApp extends StatelessWidget {
     final gate = AuthGate(
       demoMode: demoMode,
       requirePhoneVerification: requirePhoneVerification,
+      initialSearchDate: initialSearchDate,
     );
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthController(authRepository)),
         Provider<ProfileRepository>.value(value: profileRepository),
+        Provider<TripRepository>.value(value: tripRepository),
       ],
       child: MaterialApp(
         title: 'SafeTrip',
@@ -60,10 +67,12 @@ class AuthGate extends StatelessWidget {
     super.key,
     this.demoMode = false,
     this.requirePhoneVerification = false,
+    this.initialSearchDate,
   });
 
   final bool demoMode;
   final bool requirePhoneVerification;
+  final DateTime? initialSearchDate;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +85,7 @@ class AuthGate extends StatelessWidget {
         if (requirePhoneVerification && !auth.phoneVerified) {
           return VerifyPhonePage(demoMode: demoMode);
         }
-        return const AppShell();
+        return AppShell(initialSearchDate: initialSearchDate);
       case AuthStatus.unauthenticated:
         return LoginPage(demoMode: demoMode);
     }

@@ -8,6 +8,9 @@ import 'features/auth/data/mock_auth_repository.dart';
 import 'features/profile/data/firebase_profile_repository.dart';
 import 'features/profile/data/mock_profile_repository.dart';
 import 'features/profile/data/profile_repository.dart';
+import 'features/trips/data/firebase_trip_repository.dart';
+import 'features/trips/data/mock_trip_repository.dart';
+import 'features/trips/data/trip_repository.dart';
 import 'firebase_options.dart';
 
 /// `flutter run --dart-define=USE_FIREBASE=true` once `flutterfire configure`
@@ -24,22 +27,26 @@ Future<void> main() async {
 
   final AuthRepository authRepository;
   final ProfileRepository profileRepository;
+  final TripRepository tripRepository;
   if (useFirebase) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     authRepository = FirebaseAuthRepository();
     profileRepository = FirebaseProfileRepository();
+    tripRepository = FirebaseTripRepository();
   } else {
     final demo = MockAuthRepository();
     authRepository = demo;
     profileRepository = MockProfileRepository(demo);
+    tripRepository = MockTripRepository();
   }
 
   runApp(
     SafeTripApp(
       authRepository: authRepository,
       profileRepository: profileRepository,
+      tripRepository: tripRepository,
       demoMode: !useFirebase,
       requirePhoneVerification: requirePhone,
     ),

@@ -6,26 +6,31 @@ import '../../core/widgets/safetrip_logo.dart';
 import '../auth/presentation/auth_controller.dart';
 import '../profile/presentation/profile_controller.dart';
 import '../profile/presentation/widgets/profile_avatar.dart';
+import '../trips/data/places.dart';
+import '../trips/data/trip.dart';
+import '../trips/presentation/trip_format.dart';
+import '../trips/presentation/trip_results_page.dart';
 
-/// Home after sign-in. Trip search (UC08) will replace the placeholder.
+/// Home after sign-in, with the trip search (UC08).
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.initialDate});
+
+  final DateTime? initialDate;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final _fromCtrl = TextEditingController();
-  final _toCtrl = TextEditingController();
-  DateTime _date = DateTime.now();
+  String? _from;
+  String? _to;
+  late DateTime _date;
   int _seats = 1;
 
   @override
-  void dispose() {
-    _fromCtrl.dispose();
-    _toCtrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _date = widget.initialDate ?? DateTime.now();
   }
 
   Future<void> _pickDate() async {
@@ -40,17 +45,34 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _search() {
-    final from = _fromCtrl.text.trim();
-    final to = _toCtrl.text.trim();
-    if (from.isEmpty || to.isEmpty) {
+    if (_from == null || _to == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Indiquez le départ et la destination.')),
       );
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('La recherche de trajets arrive à la prochaine étape.'),
+    if (_from == _to) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Le départ et la destination doivent différer.'),
+        ),
+      );
+      return;
+    }
+    final profile = context.read<ProfileController>();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: profile,
+          child: TripResultsPage(
+            query: TripQuery(
+              departureId: _from!,
+              destinationId: _to!,
+              date: _date,
+              seats: _seats,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -141,8 +163,10 @@ class _HomePageState extends State<HomePage> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 560),
                   child: _SearchCard(
-                    fromCtrl: _fromCtrl,
-                    toCtrl: _toCtrl,
+                    from: _from,
+                    to: _to,
+                    onFrom: (value) => setState(() => _from = value),
+                    onTo: (value) => setState(() => _to = value),
                     date: _date,
                     seats: _seats,
                     onPickDate: _pickDate,
@@ -170,8 +194,10 @@ class _HomePageState extends State<HomePage> {
 
 class _SearchCard extends StatelessWidget {
   const _SearchCard({
-    required this.fromCtrl,
-    required this.toCtrl,
+    required this.from,
+    required this.to,
+    required this.onFrom,
+    required this.onTo,
     required this.date,
     required this.seats,
     required this.onPickDate,
@@ -179,8 +205,10 @@ class _SearchCard extends StatelessWidget {
     required this.onSearch,
   });
 
-  final TextEditingController fromCtrl;
-  final TextEditingController toCtrl;
+  final String? from;
+  final String? to;
+  final ValueChanged<String?> onFrom;
+  final ValueChanged<String?> onTo;
   final DateTime date;
   final int seats;
   final VoidCallback onPickDate;
@@ -189,9 +217,6 @@ class _SearchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel =
-        '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/${date.year}';
     return Card(
       elevation: 2,
       color: Colors.white,
@@ -200,28 +225,26 @@ class _SearchCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(
+            DropdownButtonFormField<String>(
               key: const Key('search_from'),
-              controller: fromCtrl,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Départ',
-                hintText: 'Tunis',
-                prefixIcon: Icon(Icons.trip_origin, color: AppColors.primary),
-              ),
+              initialValue: from,
+              decoration: const InputDecoration(labelText: 'Départ'),
+              items: [
+                for (final place in places)
+                  DropdownMenuItem(value: place.id, child: Text(place.name)),
+              ],
+              onChanged: onFrom,
             ),
             const SizedBox(height: 12),
-            TextField(
+            DropdownButtonFormField<String>(
               key: const Key('search_to'),
-              controller: toCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Destination',
-                hintText: 'Nabeul',
-                prefixIcon: Icon(
-                  Icons.location_on_outlined,
-                  color: AppColors.green,
-                ),
-              ),
+              initialValue: to,
+              decoration: const InputDecoration(labelText: 'Destination'),
+              items: [
+                for (final place in places)
+                  DropdownMenuItem(value: place.id, child: Text(place.name)),
+              ],
+              onChanged: onTo,
             ),
             const SizedBox(height: 12),
             Row(
@@ -230,7 +253,7 @@ class _SearchCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onPickDate,
                     icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(dateLabel),
+                    label: Text(formatDay(date)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -293,8 +316,8 @@ class _EmptyTrips extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Aucun trajet publié pour le moment. Le fil d\'offres '
-                    'arrive à la prochaine étape.',
+                    'Choisissez un départ et une destination pour voir '
+                    'les trajets prévus.',
                     style: TextStyle(color: AppColors.textMuted),
                   ),
                 ),
