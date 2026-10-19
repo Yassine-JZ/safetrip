@@ -103,10 +103,23 @@ class FirebaseProfileRepository implements ProfileRepository {
     return batch.commit();
   });
 
-  // Trips are introduced with UC13; until then nobody can have one.
   @override
-  Future<DriverCommitment> driverCommitments(String uid) async =>
-      DriverCommitment.none;
+  Future<DriverCommitment> driverCommitments(String uid) async {
+    final snap = await _db
+        .collection('trips')
+        .where('driverId', isEqualTo: uid)
+        .get();
+    if (snap.docs.any((doc) => doc.data()['status'] == 'ongoing')) {
+      return DriverCommitment.tripInProgress;
+    }
+    final booked = snap.docs.any((doc) {
+      final data = doc.data();
+      final accepted = (data['acceptedCount'] as num?)?.toInt() ?? 0;
+      return data['status'] == 'planned' && accepted > 0;
+    });
+    if (booked) return DriverCommitment.upcomingTripWithBookings;
+    return DriverCommitment.none;
+  }
 
   @override
   Future<void> setDriverEnabled(String uid, bool enabled) async {

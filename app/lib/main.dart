@@ -37,9 +37,10 @@ Future<void> main() async {
     tripRepository = FirebaseTripRepository();
   } else {
     final demo = MockAuthRepository();
+    final trips = MockTripRepository();
     authRepository = demo;
-    profileRepository = MockProfileRepository(demo);
-    tripRepository = MockTripRepository();
+    profileRepository = MockProfileRepository(demo)..trips = trips;
+    tripRepository = trips;
   }
 
   runApp(
