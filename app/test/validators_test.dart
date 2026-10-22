@@ -24,6 +24,12 @@ void main() {
       expect(Validators.phone('1234'), isNotNull);
       expect(Validators.phone('012345678'), isNotNull);
     });
+
+    test('normalizes every accepted form to the same key', () {
+      expect(Validators.normalizePhone('20 123 456'), '+21620123456');
+      expect(Validators.normalizePhone('20.123-456'), '+21620123456');
+      expect(Validators.normalizePhone('+216 20 123 456'), '+21620123456');
+    });
   });
 
   group('Validators.newPassword', () {
@@ -32,6 +38,12 @@ void main() {
       expect(Validators.newPassword('abcdefgh'), isNotNull);
       expect(Validators.newPassword('12345678'), isNotNull);
       expect(Validators.newPassword('Safe2026'), isNull);
+    });
+
+    test('refuses very common passwords whatever the case', () {
+      expect(Validators.newPassword('Azerty123'), isNotNull);
+      expect(Validators.newPassword('PASSWORD123'), isNotNull);
+      expect(Validators.newPassword('safetrip123'), isNotNull);
     });
   });
 }

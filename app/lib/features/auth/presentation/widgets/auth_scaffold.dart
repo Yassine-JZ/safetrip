@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/safetrip_logo.dart';
 
 /// Layout commun aux écrans de connexion et d'inscription :
 /// panneau de marque à gauche sur grand écran, en-tête compact sur mobile.
@@ -211,30 +212,6 @@ class _Feature extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class SafeTripLogo extends StatelessWidget {
-  const SafeTripLogo({super.key, this.size = 56, this.inverted = false});
-
-  final double size;
-  final bool inverted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: inverted ? Colors.white : AppColors.primary,
-        borderRadius: BorderRadius.circular(size * 0.3),
-      ),
-      child: Icon(
-        Icons.directions_car_filled_rounded,
-        size: size * 0.55,
-        color: inverted ? AppColors.primary : Colors.white,
       ),
     );
   }

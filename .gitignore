@@ -30,3 +30,7 @@ doc/api/
 
 # Fichiers partagés dans la session
 uploads/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml

@@ -12,6 +12,10 @@ import 'firebase_options.dart';
 /// mode with an in-memory account store.
 const useFirebase = bool.fromEnvironment('USE_FIREBASE');
 
+/// `--dart-define=REQUIRE_PHONE=true` adds the SMS code step after the
+/// e-mail verification (needs Phone sign-in working in Firebase).
+const requirePhone = bool.fromEnvironment('REQUIRE_PHONE');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -25,5 +29,11 @@ Future<void> main() async {
     repository = MockAuthRepository();
   }
 
-  runApp(SafeTripApp(authRepository: repository, demoMode: !useFirebase));
+  runApp(
+    SafeTripApp(
+      authRepository: repository,
+      demoMode: !useFirebase,
+      requirePhoneVerification: requirePhone,
+    ),
+  );
 }

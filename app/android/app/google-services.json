@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "844350786959",
+    "project_id": "safetrip-60fe2",
+    "storage_bucket": "safetrip-60fe2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:844350786959:android:7a8eb185f7c0568c8c8ffa",
+        "android_client_info": {
+          "package_name": "tn.safetrip.safetrip"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwQ7pR9Z72zotJFFxJg15juiQ_v5Tt9pc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

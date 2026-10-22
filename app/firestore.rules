@@ -6,32 +6,51 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
     function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function emailVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    // Phone confirmed by SMS: Firebase Auth puts it in the ID token and
+    // attaches a number to a single account.
+    function confirmedPhone() {
+      return signedIn() ? request.auth.token.get('phone_number', null) : null;
+    }
+    // Activated account (UC01): e-mail link clicked. The SMS step is off in
+    // the app for now (REQUIRE_PHONE); once it is on, also require
+    // `confirmedPhone() != null` here.
+    function verified() { return emailVerified(); }
+    function isVerifiedOwner(uid) { return isOwner(uid) && verified(); }
 
-    // Public profile: readable by signed-in users. Users cannot grant
+    // Public profile: readable by verified users. Users cannot grant
     // themselves the driver capability here; UC12 will go through a Cloud
     // Function that checks the vehicle.
+    // Creation is allowed before verification because the documents are
+    // written right after sign-up, before the link can be clicked.
     match /users/{uid} {
-      allow read: if signedIn();
+      allow read: if verified() || isAdmin();
       allow create: if isOwner(uid)
         && request.resource.data.driverEnabled == false
         && request.resource.data.keys().hasOnly([
              'firstName', 'lastName', 'photoUrl', 'driverEnabled',
              'ratingAverage', 'ratingCount', 'createdAt'
            ]);
-      allow update: if isOwner(uid)
+      allow update: if isVerifiedOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['firstName', 'lastName', 'photoUrl']);
       allow delete: if false;
     }
 
-    // Private contact data: owner and admins only.
+    // Private contact data: owner and admins only. The phone typed at
+    // sign-up is unconfirmed; it can only be replaced by the number
+    // confirmed by SMS.
     match /users_private/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if (isOwner(uid) && emailVerified()) || isAdmin();
       allow create: if isOwner(uid)
-        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt']);
-      allow update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['email', 'phone', 'createdAt'])
+        && request.resource.data.phone.matches('^[+]216[2-9][0-9]{7}$');
+      allow update: if isOwner(uid) && emailVerified()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['phone']);
+             .hasOnly(['phone'])
+        && request.resource.data.phone == confirmedPhone();
       allow delete: if false;
     }
   }
