@@ -17,6 +17,7 @@ class MockAuthRepository implements AuthRepository {
       password: demoPassword,
     );
     _phoneOwners[demoPhone] = 'demo-uid';
+    _registeredPhones['demo-uid'] = demoPhone;
   }
 
   static const demoEmail = 'demo@safetrip.tn';
@@ -126,6 +127,42 @@ class MockAuthRepository implements AuthRepository {
     final user = _update(current.copyWith(phoneNumber: phone));
     _controller.add(user);
     return user;
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await Future<void>.delayed(_latency);
+    final current = _current;
+    final account = current == null ? null : _accounts[current.email];
+    if (account == null) {
+      throw const AuthFailure('Session expirée. Reconnectez-vous.');
+    }
+    if (account.password != currentPassword) {
+      throw const AuthFailure('Mot de passe actuel incorrect.');
+    }
+    _accounts[current!.email] = _MockAccount(
+      user: account.user,
+      password: newPassword,
+    );
+  }
+
+  /// Used by the demo profile repository when the name is edited.
+  void updateDisplayName(String displayName) {
+    final current = _current;
+    if (current == null) return;
+    final user = _update(
+      AppUser(
+        uid: current.uid,
+        email: current.email,
+        displayName: displayName,
+        emailVerified: current.emailVerified,
+        phoneNumber: current.phoneNumber,
+      ),
+    );
+    _controller.add(user);
   }
 
   @override

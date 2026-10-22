@@ -41,6 +41,37 @@ class Validators {
     return compact.startsWith('+216') ? compact : '+216$compact';
   }
 
+  static final _plateRegex = RegExp(r'^[0-9A-Z -]{4,15}$');
+
+  static String? vehicleBrand(String? value) {
+    final err = required(value, 'La marque');
+    if (err != null) return err;
+    final length = value!.trim().length;
+    if (length < 2) return 'Marque trop courte';
+    if (length > 40) return 'Marque trop longue';
+    return null;
+  }
+
+  /// Upper case, single spaces: `123 tu  4567` → `123 TU 4567`.
+  static String normalizePlate(String value) =>
+      value.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+
+  static String? plate(String? value) {
+    final err = required(value, 'Le matricule');
+    if (err != null) return err;
+    final plate = normalizePlate(value!);
+    if (!_plateRegex.hasMatch(plate) || !plate.contains(RegExp(r'\d'))) {
+      return 'Matricule invalide (ex. 123 TU 4567)';
+    }
+    return null;
+  }
+
+  static String? seats(int? value) {
+    if (value == null) return 'Le nombre de places est obligatoire';
+    if (value < 1 || value > 8) return 'Entre 1 et 8 places passagers';
+    return null;
+  }
+
   static String? loginPassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Le mot de passe est obligatoire';

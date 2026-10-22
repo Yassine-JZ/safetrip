@@ -63,6 +63,14 @@ class AuthController extends ChangeNotifier {
     _setUser(await _run(() => _repository.confirmPhoneCode(code)));
   }
 
+  Future<void> changePassword(String currentPassword, String newPassword) =>
+      _run(
+        () => _repository.changePassword(
+          currentPassword: currentPassword,
+          newPassword: newPassword,
+        ),
+      );
+
   Future<void> signOut() => _repository.signOut();
 
   void _setUser(AppUser user) {

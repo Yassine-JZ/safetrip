@@ -90,5 +90,11 @@ abstract class AuthRepository {
   /// single account: Firebase refuses it otherwise.
   Future<AppUser> confirmPhoneCode(String code);
 
+  /// Checks [currentPassword] again before changing it.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<void> signOut();
 }

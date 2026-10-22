@@ -8,19 +8,22 @@ import 'features/auth/presentation/auth_controller.dart';
 import 'features/auth/presentation/login_page.dart';
 import 'features/auth/presentation/verify_email_page.dart';
 import 'features/auth/presentation/verify_phone_page.dart';
-import 'features/home/home_page.dart';
+import 'features/home/app_shell.dart';
 import 'features/intro/intro_flow.dart';
+import 'features/profile/data/profile_repository.dart';
 
 class SafeTripApp extends StatelessWidget {
   const SafeTripApp({
     super.key,
     required this.authRepository,
+    required this.profileRepository,
     this.demoMode = false,
     this.showIntro = true,
     this.requirePhoneVerification = false,
   });
 
   final AuthRepository authRepository;
+  final ProfileRepository profileRepository;
   final bool demoMode;
   final bool showIntro;
 
@@ -34,8 +37,11 @@ class SafeTripApp extends StatelessWidget {
       demoMode: demoMode,
       requirePhoneVerification: requirePhoneVerification,
     );
-    return ChangeNotifierProvider(
-      create: (_) => AuthController(authRepository),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthController(authRepository)),
+        Provider<ProfileRepository>.value(value: profileRepository),
+      ],
       child: MaterialApp(
         title: 'SafeTrip',
         debugShowCheckedModeBanner: false,
@@ -70,7 +76,7 @@ class AuthGate extends StatelessWidget {
         if (requirePhoneVerification && !auth.phoneVerified) {
           return VerifyPhonePage(demoMode: demoMode);
         }
-        return const HomePage();
+        return const AppShell();
       case AuthStatus.unauthenticated:
         return LoginPage(demoMode: demoMode);
     }

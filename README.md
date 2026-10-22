@@ -25,6 +25,13 @@ Ce dépôt contient l'**étape 1 : connexion et inscription** (UC01).
 - **Données séparées** : profil public dans `users/{uid}`, e-mail et téléphone privés
   dans `users_private/{uid}` (cahier des charges §7.3). Règles dans `firestore.rules`.
 - Mise en page responsive : panneau de présentation sur grand écran, formulaire seul sur mobile.
+- **Profil (UC02)** : nom, photo facultative, e-mail et téléphone en lecture seule,
+  changement de mot de passe.
+- **Véhicule et mode conducteur (UC12)** : marque, matricule et places passagers.
+  Le matricule n'est lisible que par le propriétaire et les administrateurs.
+  La désactivation est refusée si un trajet à venir a des réservations acceptées
+  ou si un trajet est en cours (ces trajets arrivent avec UC13 ; le contrôle est
+  déjà branché).
 - **Mode démo** sans Firebase (comptes en mémoire) : `demo@safetrip.tn` / `Demo1234`.
 
 ## Lancer le projet
@@ -102,7 +109,8 @@ app/lib/
     ├── auth/
     │   ├── data/                 # AuthRepository, implémentations Firebase et démo
     │   └── presentation/         # AuthController, LoginPage, RegisterPage, VerifyEmailPage, widgets
-    └── home/home_page.dart       # écran provisoire après connexion
+    ├── home/                     # accueil et barre de navigation
+    └── profile/                  # profil, véhicule, mode conducteur (UC02, UC12)
 ```
 
 ## Feuille de route (sprints du cahier des charges)
@@ -110,7 +118,7 @@ app/lib/
 | Étape | Contenu |
 |------|---------|
 | 1 ✅ | Connexion, inscription, mot de passe oublié, vérification de l'e-mail |
-| 2 | Profil, véhicule, activation / désactivation du mode conducteur (UC02, UC12) |
+| 2 ✅ | Profil, véhicule, activation / désactivation du mode conducteur (UC02, UC12) |
 | 3 | Fil d'offres, publication et recherche de trajets (UC08, UC13) |
 | 4 | Réservations atomiques via Cloud Functions, cycle du trajet (UC09, UC14, UC16, UC17) |
 | 5 | Notifications FCM, historique, évaluations (UC03, UC04, UC07) |
